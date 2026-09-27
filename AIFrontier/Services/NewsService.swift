@@ -9,7 +9,7 @@ struct URLSessionFeedFetcher: FeedFetching {
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("AIFrontier/1.4 iOS", forHTTPHeaderField: "User-Agent")
+        request.setValue("AIFrontier/1.5 iOS", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
               data.count <= 5_000_000 else { throw URLError(.badServerResponse) }
@@ -192,19 +192,23 @@ final class NewsService: ObservableObject {
         sourceFailures = []
         var fetched: [NewsArticle] = []
         var successfulSources = 0
+        let clock = self.clock
         await withTaskGroup(of: (String, Result<[NewsArticle], Error>).self) { group in
-            for source in sources {
-                group.addTask { [fetcher] in
-                    do {
-                        let data = try await fetcher.data(from: source.feedURL)
-                        return (source.name, .success(try FeedParser.parse(data: data, source: source)))
-                    } catch { return (source.name, .failure(error)) }
-                }
+            // A rolling pool bounds sockets and parser work for the expanded catalog.
+            let initialCount = min(6, sources.count)
+            var nextIndex = initialCount
+            for source in sources.prefix(initialCount) {
+                group.addTask { [fetcher] in await Self.fetch(source, using: fetcher, clock: clock) }
             }
             for await (name, result) in group {
                 switch result {
                 case .success(let items): successfulSources += 1; fetched.append(contentsOf: items)
                 case .failure: sourceFailures.append(name)
+                }
+                if !Task.isCancelled, nextIndex < sources.count {
+                    let source = sources[nextIndex]
+                    nextIndex += 1
+                    group.addTask { [fetcher] in await Self.fetch(source, using: fetcher, clock: clock) }
                 }
             }
         }
@@ -227,6 +231,19 @@ final class NewsService: ObservableObject {
             state = .loaded
         }
     }
+
+    nonisolated private static func fetch(_ source: NewsSource, using fetcher: any FeedFetching,
+                                          clock: @Sendable () -> Date) async -> (String, Result<[NewsArticle], Error>) {
+        do {
+            try Task.checkCancellation()
+            let data = try await fetcher.data(from: source.feedURL)
+            try Task.checkCancellation()
+            let parsed = try FeedParser.parse(data: data, source: source)
+            // Discard old/non-AI entries off the main actor before merging the catalog.
+            return (source.name, .success(NewsSelection.select(parsed, now: clock())))
+        } catch { return (source.name, .failure(error)) }
+    }
+
 }
 
 enum FeedParser {
@@ -301,7 +318,7 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
         let link = atomLink ?? item["link"] ?? item["guid"] ?? item["id"] ?? ""
         guard !title.isEmpty, let url = URL(string: link.trimmingCharacters(in: .whitespacesAndNewlines)),
               ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil,
-              let date = Self.parseDate(item["published"] ?? item["pubdate"] ?? item["dc:date"] ?? item["updated"] ?? "") else { return }
+              let date = ["published", "pubdate", "dc:date", "updated"].lazy.compactMap({ self.item[$0].flatMap(Self.parseDate) }).first else { return }
         articles.append(.init(id: item["guid"] ?? item["id"] ?? url.absoluteString, title: title,
                              summary: summary, url: url, sourceName: source.name, publishedAt: date,
                              languageCode: "en", categories: categories, isReviewed: false))
@@ -322,7 +339,7 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
         if let date = iso.date(from: value) { return date }
         iso.formatOptions.insert(.withFractionalSeconds)
         if let date = iso.date(from: value) { return date }
-        for format in ["EEE, dd MMM yyyy HH:mm:ss Z", "EEE, d MMM yyyy HH:mm:ss Z", "yyyy-MM-dd'T'HH:mm:ssZ"] {
+        for format in ["EEE, dd MMM yyyy HH:mm:ss Z", "EEE, d MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy HH:mm:ss zzz", "yyyy-MM-dd'T'HH:mm:ssZ"] {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.isLenient = false

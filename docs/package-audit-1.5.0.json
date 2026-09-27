@@ -1,0 +1,22 @@
+{
+  "AIFrontier-1.5.0-signed.ipa": {
+    "sha256": "610d6c92d5948077b3eb158dab211f5aa438cb1c68efadc1b925de4441882bc0",
+    "curriculumSHA256": "5d2f8ec327ff045afec7266e490da582e890f2b51516d8f10dcf3f8cd067fc2f",
+    "strictSignatureVerified": true,
+    "version": "1.5.0",
+    "build": "7",
+    "minimumOS": "18.0",
+    "nativeLaunchStoryboardBundled": true,
+    "signingKind": "App Store distribution",
+    "team": "VA8X63NPCS",
+    "provisionExpiresUTC": "2027-09-04T11:54:11+00:00",
+    "provisionedDeviceCount": 0,
+    "lessons": 600,
+    "explanationSections": 1800,
+    "exampleBlocks": 720,
+    "questions": 1980,
+    "references": 60,
+    "curriculumMatchesSourceExactly": true,
+    "modelWeightsBundled": false
+  }
+}

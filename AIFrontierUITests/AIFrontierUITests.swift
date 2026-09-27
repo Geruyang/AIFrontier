@@ -86,6 +86,20 @@ final class AIFrontierUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["New AI model release"].waitForExistence(timeout: 5))
     }
 
+    func testFindsSourcesByNameAndShowsTheirType() {
+        let app = launchApp()
+        tapTab("tab.discover", label: "Discover", in: app)
+        app.buttons["discover.sources"].tap()
+        let search = app.searchFields["Find a source"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Hugging Face")
+        XCTAssertTrue(app.staticTexts["Hugging Face"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Research & community")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["Google AI"].exists)
+        attachScreenshot(app, name: "Search expanded news sources")
+    }
+
     func testLargeTextNewsKeepsReadingActionsReachable() {
         let normal = launchApp(arguments: ["-ui-testing", "-chinese-news-ui-testing"])
         let normalTitle = normal.staticTexts["探索 AI，拓展你的可能。"]

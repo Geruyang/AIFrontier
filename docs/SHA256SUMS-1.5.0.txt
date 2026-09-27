@@ -1,0 +1,2 @@
+610d6c92d5948077b3eb158dab211f5aa438cb1c68efadc1b925de4441882bc0  AIFrontier-1.5.0-signed.ipa
+240c1e41ff02ca9f822fb91260fb40a004def28be83d1d8c4f1796fd66414143  AIFrontier-1.5.0-simulator.zip

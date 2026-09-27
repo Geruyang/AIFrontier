@@ -27,11 +27,8 @@
         <key>UIApplicationSupportsMultipleScenes</key>
         <false/>
     </dict>
-    <key>UILaunchScreen</key>
-    <dict>
-        <key>UIColorName</key>
-        <string>AccentColor</string>
-    </dict>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
@@ -55,4 +52,3 @@
     </array>
 </dict>
 </plist>
-

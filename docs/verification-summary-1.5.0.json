@@ -1,0 +1,26 @@
+{
+  "version": "1.5.0",
+  "build": 7,
+  "environment": "Xcode 26.6 / iPhone 17 Pro iOS 26.5 Simulator / Release",
+  "regression": {
+    "logicTests": 65,
+    "targetedUITests": 3,
+    "failures": 0
+  },
+  "final64FeedCatalog": {
+    "logicTests": 65,
+    "sourceSearchUITests": 1,
+    "failures": 0
+  },
+  "liveFeeds": {
+    "valid": 64,
+    "publisherGroups": 52,
+    "parsedArticles": 3687,
+    "selectedUniqueArticles": 197
+  },
+  "archive": "passed",
+  "export": "passed",
+  "simulatorBuild": "passed",
+  "staticAnalysis": "passed",
+  "note": "Repeated tests are not counted as new cases; native launch preview is a storyboard rendering, not a system cold-launch capture."
+}

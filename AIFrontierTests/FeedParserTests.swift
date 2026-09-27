@@ -33,6 +33,26 @@ final class FeedParserTests: XCTestCase {
         XCTAssertEqual(articles[0].categories, ["Evaluation"])
     }
 
+    func testFallsBackToValidPublicationDateWhenAnotherFieldIsMalformed() throws {
+        let xml = """
+        <rss xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><item>
+        <title>AI governance research</title><link>https://example.com/research</link>
+        <pubDate>not a date</pubDate><dc:date>2026-09-25T12:00:00-04:00</dc:date>
+        </item></channel></rss>
+        """
+        let item = try XCTUnwrap(FeedParser.parse(data: Data(xml.utf8), source: testSource).first)
+        XCTAssertEqual(item.publishedAt, ISO8601DateFormatter().date(from: "2026-09-25T16:00:00Z"))
+    }
+
+    func testParsesRSSDateWithNamedTimezone() throws {
+        let xml = """
+        <rss><channel><item><title>AI research</title><link>https://example.com/research</link>
+        <pubDate>Fri, 25 Sep 2026 12:00:00 EDT</pubDate></item></channel></rss>
+        """
+        let item = try XCTUnwrap(FeedParser.parse(data: Data(xml.utf8), source: testSource).first)
+        XCTAssertEqual(item.publishedAt, ISO8601DateFormatter().date(from: "2026-09-25T16:00:00Z"))
+    }
+
     func testAtomAlternateLinkWinsOverSelfAndFractionalDateParses() throws {
         let xml = """
         <feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Open Model</title><id>tag:example,1</id>
@@ -373,5 +393,45 @@ final class NewsServiceTests: XCTestCase {
     private func makeStore() -> LocalStore {
         let name = "NewsServiceTests.\(UUID().uuidString)"
         return LocalStore(defaults: UserDefaults(suiteName: name)!, storageKey: "news")
+    }
+}
+
+@MainActor
+final class NewsExpansionTests: XCTestCase {
+    private actor CountingFetcher: FeedFetching {
+        private var active = 0
+        private(set) var peak = 0
+        private(set) var calls = 0
+        func data(from url: URL) async throws -> Data {
+            active += 1; calls += 1; peak = max(peak, active)
+            defer { active -= 1 }
+            try await Task.sleep(for: .milliseconds(20))
+            return rss(link: url.absoluteString + "/article")
+        }
+    }
+
+    func testLargeCatalogBoundsConcurrentRequestsAndVisitsEverySource() async {
+        let sources = (0..<54).map { index in
+            NewsSource(id: "source-\(index)", name: "Source \(index)", feedURL: URL(string: "https://example.com/\(index)")!, homepageURL: URL(string: "https://example.com")!, kind: "Test")
+        }
+        let fetcher = CountingFetcher()
+        let store = LocalStore(defaults: UserDefaults(suiteName: "Expansion.\(UUID().uuidString)")!)
+        let service = NewsService(fetcher: fetcher, sources: sources, store: store, clock: { testNow })
+        await service.refresh()
+        let peak = await fetcher.peak
+        let calls = await fetcher.calls
+        XCTAssertLessThanOrEqual(peak, 6, "Expanding sources must not launch every network request together")
+        XCTAssertEqual(calls, sources.count)
+        XCTAssertEqual(service.articles.count, sources.count)
+        XCTAssertEqual(service.state, .loaded)
+    }
+
+    func testCatalogHasAtLeastFiftyDistinctHTTPSFeeds() {
+        let sources = NewsSource.defaults
+        XCTAssertGreaterThanOrEqual(sources.count, 50)
+        XCTAssertEqual(Set(sources.map(\.id)).count, sources.count)
+        XCTAssertEqual(Set(sources.map(\.name)).count, sources.count)
+        XCTAssertEqual(Set(sources.map(\.feedURL)).count, sources.count)
+        XCTAssertTrue(sources.allSatisfy { $0.feedURL.scheme == "https" && $0.homepageURL.scheme == "https" })
     }
 }

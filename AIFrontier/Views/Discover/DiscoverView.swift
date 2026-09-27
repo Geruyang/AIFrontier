@@ -146,24 +146,45 @@ struct NewsSourcesView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var news: NewsService
 
+    @State private var searchText = ""
+    private var matchingSources: [NewsSource] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return NewsSource.defaults.filter {
+            query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)
+                || ($0.homepageURL.host ?? "").localizedCaseInsensitiveContains(query)
+                || category($0).localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private func category(_ source: NewsSource) -> String {
+        switch source.kind {
+        case "Technology journalism": settings.text("Technology media", "科技媒体")
+        case "University news", "University research announcement": settings.text("University", "大学机构")
+        case "Official community and research": settings.text("Research & community", "研究与社区")
+        case "Research organization": settings.text("Research organization", "研究机构")
+        case "Research publication": settings.text("Research publication", "研究出版物")
+        default: settings.text("Official publisher", "官方发布")
+        }
+    }
+
     var body: some View {
         List {
             Section {
-                Text(settings.text("Direct from publishers", "直达发布者"))
+                Text(settings.text("\(NewsSource.defaults.count) news sources", "\(NewsSource.defaults.count) 个新闻来源"))
                     .font(.title2.bold())
-                Text(settings.text("Follow AI announcements and research from the publishers below. Open any story to read its original source.", "关注以下发布者的 AI 动态与研究，每条资讯均可打开原文。"))
+                Text(settings.text("Official announcements, university research, and technology reporting. Multiple editorial feeds may belong to the same publisher; every story links to its original source.", "汇集官方公告、大学研究与科技报道。同一机构可能提供不同编辑频道，每条资讯均可追溯原文。"))
                     .font(.subheadline).foregroundStyle(.secondary)
                 if let date = news.lastRefresh {
                     LabeledContent(settings.text("Last updated", "最近更新")) { Text(date, format: .dateTime.month().day().hour().minute()) }
                 }
             }
             Section(settings.text("Publishers", "发布者")) {
-                ForEach(NewsSource.defaults) { source in
+                ForEach(matchingSources) { source in
                     Link(destination: source.homepageURL) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(source.name).font(.headline)
-                                Text(source.homepageURL.host ?? "").font(.caption).foregroundStyle(.secondary)
+                                Text(category(source) + " · " + (source.homepageURL.host ?? "")).font(.caption).foregroundStyle(.secondary)
                                 if news.sourceFailures.contains(source.name) {
                                     Text(settings.text("Temporarily unavailable", "暂时无法连接")).font(.caption).foregroundStyle(.secondary)
                                 }
@@ -174,6 +195,9 @@ struct NewsSourcesView: View {
                     }.foregroundStyle(.primary)
                 }
             }
+            if matchingSources.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+            }
             Section(settings.text("Updates", "资讯更新")) {
                 Text(settings.text("Checks every 5 minutes while the app is active. Background updates depend on iOS, network access, and your Background App Refresh settings.", "使用时每 5 分钟检查更新。后台更新由 iOS 调度，取决于网络及系统的“后台 App 刷新”设置。"))
                     .font(.footnote).foregroundStyle(.secondary)
@@ -181,5 +205,6 @@ struct NewsSourcesView: View {
         }
         .navigationTitle(settings.text("News sources", "新闻来源"))
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: settings.text("Find a source", "查找新闻来源"))
     }
 }

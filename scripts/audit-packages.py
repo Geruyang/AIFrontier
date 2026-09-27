@@ -40,6 +40,8 @@ for name, owner in packages:
     assert info['CFBundleShortVersionString'] == version
     assert info['CFBundleVersion'] == build
     assert info['MinimumOSVersion'] == '18.0'
+    assert info['UILaunchStoryboardName'] == 'LaunchScreen'
+    assert (app / 'LaunchScreen.storyboardc/Info.plist').is_file()
     curriculum_bytes = (app / 'Curriculum.json').read_bytes()
     assert curriculum_bytes == source
     curriculum = json.loads(curriculum_bytes)
@@ -66,6 +68,7 @@ for name, owner in packages:
         'sha256': hashlib.sha256(package.read_bytes()).hexdigest(),
         'curriculumSHA256': hashlib.sha256(source).hexdigest(),
         'strictSignatureVerified': True, 'version': version, 'build': build, 'minimumOS': '18.0',
+        'nativeLaunchStoryboardBundled': True,
         'signingKind': 'development' if owner else 'App Store distribution',
         'team': 'VA8X63NPCS', 'provisionExpiresUTC': expiry.isoformat(),
         'provisionedDeviceCount': len(profile.get('ProvisionedDevices', [])),

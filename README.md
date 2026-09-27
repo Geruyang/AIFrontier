@@ -2,16 +2,18 @@
 
 AI Frontier is a local-first iOS app for structured AI learning and AI news tracking. English is the default interface language, with Simplified Chinese available in Settings.
 
-## Version 1.4.0
+## Version 1.5.0
 
 - A new native interface with midnight-blue hero cards, teal/violet accents, editorial news, adaptive dark mode and Dynamic Type.
-- Nine publisher feeds: OpenAI, Google AI, DeepMind, NVIDIA, Microsoft AI, AWS, Hugging Face, MIT and Berkeley AI Research.
+- 64 verified RSS/Atom feeds across 52 publisher groups, including official research, universities, public research institutions and technology media.
+- A native launch screen matching the navy, teal and violet app identity, with no artificial startup delay.
+- Search the source directory by name, domain or category; news fetching is limited to six concurrent requests.
 - Five-minute foreground checks, refresh when due on return, and system-scheduled background refresh requests. iOS does **not** guarantee a five-minute background wake-up.
 - Quiet normal operation: source details and update information are available on demand; unavailable content still has useful recovery actions.
 - Tap a trend topic to explore its related stories; search news by publisher as well as title and summary.
 - The lesson resume, review queue, durable bookmarks and quiz safeguards introduced in 1.3 remain available.
 
-See [news sources and scheduling](docs/NEWS-SOURCES.md), [design and changes](docs/IMPROVEMENTS-1.4.0.md), and [verification](docs/VERIFICATION-1.4.0.md).
+See the [verified source catalog](docs/NEWS-SOURCES-1.5.0.md), [launch design](docs/LAUNCH-SCREEN-1.5.md), and [verification](docs/VERIFICATION-1.5.0.md). [Scheduling details](docs/NEWS-SOURCES.md) and the [1.4 interface redesign](docs/IMPROVEMENTS-1.4.0.md) remain available.
 
 ## Included features
 
@@ -21,7 +23,7 @@ See [news sources and scheduling](docs/NEWS-SOURCES.md), [design and changes](do
 - 1,980 questions with their complete example context, answer explanations, local progress, and best scores
 - 540 new concept-first micro-lessons with independently authored English and Chinese explanations; search by concept or application
 - Chapter/paper references in each lesson; see CONTENT_SOURCES.md for the full curriculum and source list
-- Significant AI announcements from the past calendar month, fetched directly on device from nine publisher feeds
+- Significant AI announcements from the past calendar month, fetched directly on device from 64 publisher feeds
 - Five-minute checks while active, refresh when due on return, and immediate pull-to-refresh
 - Date validation, tracking-free URL deduplication, local importance ranking, and offline recovery and publisher availability details
 - Current-month news cache and bookmarks; no dated built-in briefs masquerading as live news
@@ -59,7 +61,7 @@ xcodebuild -project AIFrontier.xcodeproj -scheme AIFrontier \
   -configuration Debug -sdk iphonesimulator analyze
 ```
 
-The current verification record is in `docs/VERIFICATION-1.4.0.md`; earlier results remain in `docs/VERIFICATION-1.3.0.md`. `TEST_REPORT.md` records the earlier 1.2.1 release.
+The current verification record is in `docs/VERIFICATION-1.5.0.md`; earlier results remain in `docs/VERIFICATION-1.4.0.md`. `TEST_REPORT.md` records the earlier 1.2.1 release.
 
 Debug builds, including the desktop installer, define `DEVELOPER_ACCESS` and open all content for the owner. Release builds exclude that flag and use verified StoreKit entitlements. Developer access is a build setting, not a simulated purchase, login, or hidden public unlock switch.
 
@@ -92,11 +94,11 @@ xcodebuild -exportArchive -archivePath /tmp/AIFrontier.xcarchive \
   -allowProvisioningUpdates
 ```
 
-Download versioned assets from [GitHub Releases](https://github.com/Geruyang/AIFrontier/releases). The 1.4.0 release is build 6:
+Download versioned assets from [GitHub Releases](https://github.com/Geruyang/AIFrontier/releases). The 1.5.0 release is build 7:
 
-- `AIFrontier-1.4.0-signed.ipa`: signed App Store distribution archive, for App Store Connect distribution; it cannot be directly installed on an arbitrary iPhone.
-- `AIFrontier-1.4.0-simulator.zip`: Release build for the iOS Simulator. Unzip and use `xcrun simctl install booted AIFrontier.app`.
-- `SHA256SUMS-1.4.0.txt`: checksums for both binary packages.
+- `AIFrontier-1.5.0-signed.ipa`: signed App Store distribution archive, for App Store Connect distribution; it cannot be directly installed on an arbitrary iPhone.
+- `AIFrontier-1.5.0-simulator.zip`: Release build for the iOS Simulator. Unzip and use `xcrun simctl install booted AIFrontier.app`.
+- `SHA256SUMS-1.5.0.txt`: checksums for both binary packages.
 - GitHub also provides the source at the release tag as ZIP and tar.gz.
 
 Development/owner packages and private device provisioning data are intentionally excluded from the public repository and release. Signing on your own Mac requires selecting your own Apple development team and a unique bundle identifier in Xcode.

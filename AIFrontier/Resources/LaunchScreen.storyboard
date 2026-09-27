@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23501" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="launch-controller">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23500"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <scene sceneID="launch-scene">
+            <objects>
+                <viewController id="launch-controller" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="launch-view">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="brand-group">
+                                <rect key="frame" x="66.5" y="329.5" width="260" height="218"/>
+                                <subviews>
+                                    <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchMark" translatesAutoresizingMaskIntoConstraints="NO" id="brand-mark">
+                                        <rect key="frame" x="52" y="0.0" width="156" height="156"/>
+                                        <accessibility key="accessibilityConfiguration" isElement="NO"/>
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="156" id="mark-width"/>
+                                            <constraint firstAttribute="height" constant="156" id="mark-height"/>
+                                        </constraints>
+                                    </imageView>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="AI FRONTIER" textAlignment="center" lineBreakMode="clip" baselineAdjustment="alignCenters" translatesAutoresizingMaskIntoConstraints="NO" id="brand-name">
+                                        <rect key="frame" x="0.0" y="188" width="260" height="30"/>
+                                        <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="23"/>
+                                        <color key="textColor" red="0.96" green="0.98" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="width" priority="999" constant="260" id="group-width"/>
+                                    <constraint firstAttribute="height" constant="218" id="group-height"/>
+                                    <constraint firstItem="brand-mark" firstAttribute="top" secondItem="brand-group" secondAttribute="top" id="mark-top"/>
+                                    <constraint firstItem="brand-mark" firstAttribute="centerX" secondItem="brand-group" secondAttribute="centerX" id="mark-center"/>
+                                    <constraint firstItem="brand-name" firstAttribute="top" secondItem="brand-mark" secondAttribute="bottom" constant="32" id="name-top"/>
+                                    <constraint firstItem="brand-name" firstAttribute="leading" secondItem="brand-group" secondAttribute="leading" id="name-leading"/>
+                                    <constraint firstAttribute="trailing" secondItem="brand-name" secondAttribute="trailing" id="name-trailing"/>
+                                    <constraint firstAttribute="bottom" secondItem="brand-name" secondAttribute="bottom" id="name-bottom"/>
+                                </constraints>
+                            </view>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="launch-safe-area"/>
+                        <color key="backgroundColor" name="LaunchBackground"/>
+                        <constraints>
+                            <constraint firstItem="brand-group" firstAttribute="centerX" secondItem="launch-safe-area" secondAttribute="centerX" id="group-center-x"/>
+                            <constraint firstItem="brand-group" firstAttribute="centerY" secondItem="launch-safe-area" secondAttribute="centerY" id="group-center-y"/>
+                            <constraint firstItem="brand-group" firstAttribute="width" relation="lessThanOrEqual" secondItem="launch-safe-area" secondAttribute="width" constant="-48" id="group-safe-width"/>
+                            <constraint firstItem="brand-group" firstAttribute="top" relation="greaterThanOrEqual" secondItem="launch-safe-area" secondAttribute="top" constant="16" id="group-safe-top"/>
+                            <constraint firstItem="launch-safe-area" firstAttribute="bottom" relation="greaterThanOrEqual" secondItem="brand-group" secondAttribute="bottom" constant="16" id="group-safe-bottom"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="launch-responder" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="0.0" y="0.0"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="LaunchMark" width="200" height="200"/>
+        <namedColor name="LaunchBackground">
+            <color red="0.07" green="0.12" blue="0.25" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
+</document>
