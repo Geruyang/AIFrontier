@@ -1,0 +1,70 @@
+name: AIFrontier
+options:
+  bundleIdPrefix: com.geruyang
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: VA8X63NPCS
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CURRENT_PROJECT_VERSION: 4
+    MARKETING_VERSION: 1.2.1
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG DEVELOPER_ACCESS"
+    Release:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
+targets:
+  AIFrontier:
+    type: application
+    platform: iOS
+    sources:
+      - path: AIFrontier
+        excludes:
+          - Resources
+      - path: AIFrontier/Resources
+        includes:
+          - Assets.xcassets
+          - PrivacyInfo.xcprivacy
+          - Curriculum.json
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.geruyang.aifrontier
+        INFOPLIST_FILE: AIFrontier/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+    scheme:
+      testTargets:
+        - AIFrontierTests
+        - AIFrontierUITests
+      storeKitConfiguration: AIFrontier/Resources/AIFrontier.storekit
+  AIFrontierTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AIFrontierTests
+      - path: AIFrontier/Resources/AIFrontier.storekit
+        buildPhase: resources
+    dependencies:
+      - target: AIFrontier
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.geruyang.aifrontier.tests
+        GENERATE_INFOPLIST_FILE: YES
+  AIFrontierUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: AIFrontierUITests
+    dependencies:
+      - target: AIFrontier
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.geruyang.aifrontier.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: AIFrontier

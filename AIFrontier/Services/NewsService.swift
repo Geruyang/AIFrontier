@@ -1,0 +1,255 @@
+import Foundation
+
+protocol FeedFetching: Sendable {
+    func data(from url: URL) async throws -> Data
+}
+
+struct URLSessionFeedFetcher: FeedFetching {
+    func data(from url: URL) async throws -> Data {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("AIFrontier/1.1 iOS", forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              data.count <= 5_000_000 else { throw URLError(.badServerResponse) }
+        return data
+    }
+}
+
+enum FeedError: LocalizedError {
+    case noSourcesAvailable, invalidFeed
+    var errorDescription: String? {
+        switch self {
+        case .noSourcesAvailable: "No public source was available."
+        case .invalidFeed: "The source returned an unsupported feed."
+        }
+    }
+}
+
+/// Local, transparent significance signals; these are not editorial verification.
+enum NewsSelection {
+    static func monthStart(relativeTo now: Date) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar.date(byAdding: .month, value: -1, to: now)!
+    }
+
+    static func importance(of article: NewsArticle) -> Int {
+        let title = article.title.lowercased()
+        let context = (title + " " + article.summary + " " + article.categories.joined(separator: " ")).lowercased()
+        let ai = #"(\bai\b|artificial intelligence|generative|language model|\bllm\b|\bgpt[- ]|chatgpt|gemini|deepmind|neural|robotics|\bgpu\b|blackwell|rubin|machine learning)"#
+        guard context.range(of: ai, options: .regularExpression) != nil else { return 0 }
+        let exclude = #"(how to|how-to|tutorial|beginner|podcast|webinar|event recap|meet the team|course|tips for)"#
+        guard title.range(of: exclude, options: .regularExpression) == nil else { return 0 }
+        var score = 0
+        for (pattern, weight) in [
+            (#"(introduc|launch|releas|unveil|announc|now available|open.source)"#, 3),
+            (#"(breakthrough|benchmark|research|reasoning|frontier|new model|new chip|new gpu)"#, 2),
+            (#"(safety|security|regulat|governance|privacy|policy|partnership|acqui|funding|invest)"#, 2),
+            (#"(model|agent|robot|chip|infrastructure|supercomput|multimodal|video generation)"#, 1)
+        ] where title.range(of: pattern, options: .regularExpression) != nil {
+            score += weight
+        }
+        if score < 2, context.range(of: #"(launch|release|announc|introduc|new model|safety|partnership)"#, options: .regularExpression) != nil {
+            score = 2
+        }
+        return score
+    }
+
+    static func canonicalURL(_ url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        components.fragment = nil
+        components.queryItems = components.queryItems?.filter {
+            let name = $0.name.lowercased()
+            return !name.hasPrefix("utm_") && !["fbclid", "gclid"].contains(name)
+        }
+        if components.queryItems?.isEmpty == true { components.queryItems = nil }
+        components.host = components.host?.lowercased()
+        if components.path.count > 1, components.path.hasSuffix("/") { components.path.removeLast() }
+        return components.url ?? url
+    }
+
+    static func select(_ input: [NewsArticle], now: Date) -> [NewsArticle] {
+        let cutoff = monthStart(relativeTo: now)
+        var unique: [String: NewsArticle] = [:]
+        // Deterministic order also makes duplicate handling independent of network completion order.
+        for article in input.sorted(by: {
+            $0.publishedAt == $1.publishedAt ? $0.sourceName < $1.sourceName : $0.publishedAt > $1.publishedAt
+        }) {
+            guard !article.isReviewed, article.publishedAt >= cutoff, article.publishedAt <= now,
+                  ["https", "http"].contains(article.url.scheme?.lowercased() ?? ""),
+                  article.url.host != nil, importance(of: article) >= 2 else { continue }
+            let url = canonicalURL(article.url)
+            let id = url.absoluteString
+            if unique[id] == nil {
+                unique[id] = .init(id: id, title: article.title, summary: article.summary, url: url,
+                                  sourceName: article.sourceName, publishedAt: article.publishedAt,
+                                  languageCode: article.languageCode, categories: article.categories, isReviewed: false)
+            }
+        }
+        return Array(unique.values.sorted {
+            $0.publishedAt == $1.publishedAt ? $0.id < $1.id : $0.publishedAt > $1.publishedAt
+        }.prefix(200))
+    }
+}
+
+@MainActor
+final class NewsService: ObservableObject {
+    enum State: Equatable { case idle, loading, loaded, failed(String) }
+    @Published private(set) var articles: [NewsArticle] = []
+    @Published private(set) var state: State = .idle
+    @Published private(set) var sourceFailures: [String] = []
+    @Published private(set) var lastRefresh: Date?
+    private let fetcher: any FeedFetching
+    private let sources: [NewsSource]
+    private let store: LocalStore
+    private let clock: @Sendable () -> Date
+
+    init(fetcher: any FeedFetching = URLSessionFeedFetcher(), sources: [NewsSource] = NewsSource.defaults,
+         store: LocalStore, clock: @escaping @Sendable () -> Date = { .now }) {
+        self.fetcher = fetcher
+        self.sources = sources
+        self.store = store
+        self.clock = clock
+        let names = Set(sources.map(\.name))
+        articles = NewsSelection.select(store.data.cachedArticles.filter { names.contains($0.sourceName) }, now: clock())
+        lastRefresh = store.data.lastNewsRefresh
+    }
+
+    func refresh() async {
+        guard state != .loading else { return }
+        // Expire cache even if this attempt subsequently fails.
+        articles = NewsSelection.select(articles, now: clock())
+        state = .loading
+        sourceFailures = []
+        var fetched: [NewsArticle] = []
+        var successfulSources = 0
+        await withTaskGroup(of: (String, Result<[NewsArticle], Error>).self) { group in
+            for source in sources {
+                group.addTask { [fetcher] in
+                    do {
+                        let data = try await fetcher.data(from: source.feedURL)
+                        return (source.name, .success(try FeedParser.parse(data: data, source: source)))
+                    } catch { return (source.name, .failure(error)) }
+                }
+            }
+            for await (name, result) in group {
+                switch result {
+                case .success(let items): successfulSources += 1; fetched.append(contentsOf: items)
+                case .failure: sourceFailures.append(name)
+                }
+            }
+        }
+        sourceFailures.sort()
+        let now = clock()
+        if successfulSources == 0 {
+            articles = NewsSelection.select(articles, now: now)
+            state = .failed(FeedError.noSourcesAvailable.localizedDescription)
+        } else {
+            // Feeds may only retain a few days: retain still-current announcements already seen.
+            articles = NewsSelection.select(fetched + articles, now: now)
+            store.updateArticles(articles, refreshedAt: now)
+            lastRefresh = now
+            state = .loaded
+        }
+    }
+}
+
+enum FeedParser {
+    static func parse(data: Data, source: NewsSource) throws -> [NewsArticle] {
+        guard data.count <= 5_000_000 else { throw FeedError.invalidFeed }
+        let delegate = FeedXMLDelegate(source: source)
+        let parser = XMLParser(data: data)
+        parser.shouldResolveExternalEntities = false
+        parser.delegate = delegate
+        guard parser.parse(), delegate.recognizedRoot else { throw FeedError.invalidFeed }
+        return delegate.articles
+    }
+}
+
+private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
+    private let source: NewsSource
+    private var item: [String: String] = [:]
+    private var categories: [String] = []
+    private var buffers: [String] = []
+    private var insideItem = false
+    private var atomLink: String?
+    fileprivate var recognizedRoot = false
+    fileprivate var articles: [NewsArticle] = []
+
+    init(source: NewsSource) { self.source = source }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?,
+                qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
+        let element = elementName.lowercased()
+        if buffers.isEmpty { recognizedRoot = ["rss", "feed", "rdf:rdf"].contains(element) }
+        buffers.append("")
+        if element == "item" || element == "entry" {
+            insideItem = true
+            item = [:]; categories = []; atomLink = nil
+        }
+        guard insideItem else { return }
+        if element == "link", let href = attributeDict["href"],
+           attributeDict["rel"] == nil || attributeDict["rel"] == "alternate" {
+            atomLink = href
+        }
+        if element == "category", let term = attributeDict["term"] { categories.append(term) }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if !buffers.isEmpty { buffers[buffers.count - 1] += string }
+    }
+    func parser(_ parser: XMLParser, foundCDATA data: Data) {
+        if let string = String(data: data, encoding: .utf8) { self.parser(parser, foundCharacters: string) }
+    }
+    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+        let text = buffers.popLast() ?? ""
+        if !buffers.isEmpty { buffers[buffers.count - 1] += text + " " }
+        guard insideItem else { return }
+        let element = elementName.lowercased()
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if element == "category", !value.isEmpty { categories.append(value) }
+        if ["title", "description", "summary", "content", "content:encoded", "link", "guid", "id", "pubdate", "published", "updated", "dc:date"].contains(element), !value.isEmpty {
+            item[element] = value
+        }
+        if element == "item" || element == "entry" { finishItem(); insideItem = false }
+    }
+
+    private func finishItem() {
+        let title = clean(item["title"] ?? "")
+        let summary = String(clean(item["summary"] ?? item["description"] ?? item["content"] ?? item["content:encoded"] ?? "").prefix(600))
+        let link = atomLink ?? item["link"] ?? item["guid"] ?? item["id"] ?? ""
+        guard !title.isEmpty, let url = URL(string: link.trimmingCharacters(in: .whitespacesAndNewlines)),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil,
+              let date = Self.parseDate(item["published"] ?? item["pubdate"] ?? item["dc:date"] ?? item["updated"] ?? "") else { return }
+        articles.append(.init(id: item["guid"] ?? item["id"] ?? url.absoluteString, title: title,
+                             summary: summary, url: url, sourceName: source.name, publishedAt: date,
+                             languageCode: "en", categories: categories, isReviewed: false))
+    }
+
+    private func clean(_ value: String) -> String {
+        let stripped = value.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        let decoded = stripped.replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&quot;", with: "\"").replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&nbsp;", with: " ").replacingOccurrences(of: "&#8217;", with: "'")
+            .replacingOccurrences(of: "&lt;", with: "<").replacingOccurrences(of: "&gt;", with: ">")
+        return decoded.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func parseDate(_ value: String) -> Date? {
+        let iso = ISO8601DateFormatter()
+        if let date = iso.date(from: value) { return date }
+        iso.formatOptions.insert(.withFractionalSeconds)
+        if let date = iso.date(from: value) { return date }
+        for format in ["EEE, dd MMM yyyy HH:mm:ss Z", "EEE, d MMM yyyy HH:mm:ss Z", "yyyy-MM-dd'T'HH:mm:ssZ"] {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.isLenient = false
+            formatter.dateFormat = format
+            if let date = formatter.date(from: value) { return date }
+        }
+        return nil
+    }
+}

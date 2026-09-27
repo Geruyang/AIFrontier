@@ -1,0 +1,81 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      { "locale" : "en_US", "policyText" : "", "policyURL" : "" }
+    ]
+  },
+  "identifier" : "A1F20E26",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      { "enabled" : false, "name" : "Load Products" },
+      { "enabled" : false, "name" : "Purchase" },
+      { "enabled" : false, "name" : "Verification" },
+      { "enabled" : false, "name" : "App Store Sync" },
+      { "enabled" : false, "name" : "Subscription Status" },
+      { "enabled" : false, "name" : "App Transaction" },
+      { "enabled" : false, "name" : "Manage Subscriptions Sheet" },
+      { "enabled" : false, "name" : "Refund Request Sheet" },
+      { "enabled" : false, "name" : "Offer Code Redeem Sheet" }
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "A1F0C0DE",
+      "localizations" : [],
+      "name" : "AI Frontier Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1000001",
+          "introductoryOffer" : { "displayPrice" : "4.99", "internalID" : "B1000001", "paymentMode" : "free", "subscriptionPeriod" : "P1W" },
+          "localizations" : [
+            { "description" : "Seven days free, then monthly", "displayName" : "Pro Monthly", "locale" : "en_US" },
+            { "description" : "免费试用七天，之后按月续费", "displayName" : "Pro 月付", "locale" : "zh_CN" }
+          ],
+          "productID" : "com.geruyang.aifrontier.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "A1F0C0DE",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : []
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "39.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1000002",
+          "introductoryOffer" : { "displayPrice" : "39.99", "internalID" : "B1000002", "paymentMode" : "free", "subscriptionPeriod" : "P1W" },
+          "localizations" : [
+            { "description" : "Seven days free, then yearly", "displayName" : "Pro Annual", "locale" : "en_US" },
+            { "description" : "免费试用七天，之后按年续费", "displayName" : "Pro 年付", "locale" : "zh_CN" }
+          ],
+          "productID" : "com.geruyang.aifrontier.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Annual",
+          "subscriptionGroupID" : "A1F0C0DE",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : []
+        }
+      ]
+    }
+  ],
+  "version" : { "major" : 4, "minor" : 0 }
+}
