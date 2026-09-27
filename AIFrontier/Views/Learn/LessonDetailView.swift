@@ -50,7 +50,7 @@ struct LessonDetailView: View {
                     Label(store.isCompleted(lesson.id) ? settings.text("Retake knowledge check", "重新测验") : settings.text("Start knowledge check", "开始测验"), systemImage: "checkmark.seal")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent).controlSize(.large)
+                .buttonStyle(.borderedProminent).tint(AppTheme.action).controlSize(.large)
             }
             .padding()
         }

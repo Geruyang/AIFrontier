@@ -159,7 +159,12 @@ struct NewsSource: Codable, Hashable, Identifiable, Sendable {
         .init(id: "openai", name: "OpenAI News", feedURL: URL(string: "https://openai.com/news/rss.xml")!, homepageURL: URL(string: "https://openai.com/news/")!, kind: "Official announcement"),
         .init(id: "google-ai", name: "Google AI", feedURL: URL(string: "https://blog.google/technology/ai/rss/")!, homepageURL: URL(string: "https://blog.google/technology/ai/")!, kind: "Official announcement"),
         .init(id: "deepmind", name: "Google DeepMind", feedURL: URL(string: "https://deepmind.google/blog/rss.xml")!, homepageURL: URL(string: "https://deepmind.google/blog/")!, kind: "Official research announcement"),
-        .init(id: "nvidia-ai", name: "NVIDIA AI", feedURL: URL(string: "https://blogs.nvidia.com/blog/category/generative-ai/feed/")!, homepageURL: URL(string: "https://blogs.nvidia.com/")!, kind: "Official announcement")
+        .init(id: "nvidia-ai", name: "NVIDIA AI", feedURL: URL(string: "https://blogs.nvidia.com/blog/category/generative-ai/feed/")!, homepageURL: URL(string: "https://blogs.nvidia.com/")!, kind: "Official announcement"),
+        .init(id: "microsoft-ai", name: "Microsoft AI", feedURL: URL(string: "https://www.microsoft.com/en-us/ai/blog/feed/")!, homepageURL: URL(string: "https://www.microsoft.com/en-us/ai/blog/")!, kind: "Official announcement"),
+        .init(id: "aws-ml", name: "AWS Machine Learning", feedURL: URL(string: "https://aws.amazon.com/blogs/machine-learning/feed/")!, homepageURL: URL(string: "https://aws.amazon.com/blogs/machine-learning/")!, kind: "Official announcement"),
+        .init(id: "hugging-face", name: "Hugging Face", feedURL: URL(string: "https://huggingface.co/blog/feed.xml")!, homepageURL: URL(string: "https://huggingface.co/blog")!, kind: "Official community and research"),
+        .init(id: "mit-ai", name: "MIT News · AI", feedURL: URL(string: "https://news.mit.edu/rss/topic/artificial-intelligence2")!, homepageURL: URL(string: "https://news.mit.edu/topic/artificial-intelligence2")!, kind: "University news"),
+        .init(id: "berkeley-ai", name: "Berkeley AI Research", feedURL: URL(string: "https://bair.berkeley.edu/blog/feed.xml")!, homepageURL: URL(string: "https://bair.berkeley.edu/blog/")!, kind: "University research announcement")
     ]
 }
 

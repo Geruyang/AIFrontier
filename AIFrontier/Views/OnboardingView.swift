@@ -4,10 +4,10 @@ struct OnboardingView: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var step = 0
 
-    private let pages: [(String, BilingualText, BilingualText, BilingualText)] = [
-        ("brain.head.profile", .init(en: "Learn AI clearly", zhHans: "清晰学习 AI"), .init(en: "\(CurriculumCatalog.lessons.count) bilingual lessons and \(CurriculumCatalog.questionCount) questions at Beginner, Fundamentals, and Advanced levels, with examples and references.", zhHans: "入门、基础、进阶共 \(CurriculumCatalog.lessons.count) 节双语课程与 \(CurriculumCatalog.questionCount) 道习题，配有例子和来源。"), .init(en: "Find your starting point and learn to understand and apply AI step by step.", zhHans: "找到适合自己的起点，逐步学会理解和应用 AI。")),
-        ("dot.radiowaves.left.and.right", .init(en: "Track the frontier", zhHans: "跟踪技术前沿"), .init(en: "Important AI announcements from the past month, refreshed whenever you open or return to the app.", zhHans: "近一个月的重要 AI 公告，每次打开或返回应用时刷新。"), .init(en: "Keep up with developments and discover topics worth investigating.", zhHans: "掌握最新动态，发现值得深入了解的技术方向。")),
-        ("iphone.and.arrow.forward", .init(en: "Private by default", zhHans: "默认保护隐私"), .init(en: "No account or app-owned cloud server. Progress and bookmarks stay on this device.", zhHans: "无需账号，不使用自有云服务器；进度和收藏保存在本机。"), .init(en: "Learn with control over your local progress and saved material.", zhHans: "自主掌握本地学习记录与收藏，安心学习。"))
+    private let pages: [(String, BilingualText, BilingualText)] = [
+        ("brain.head.profile", .init(en: "Learn AI clearly", zhHans: "清晰学习 AI"), .init(en: "Find your starting point. Build practical AI skills with 600 bilingual lessons.", zhHans: "从适合你的起点出发，通过 600 节双语课程，逐步掌握 AI。")),
+        ("dot.radiowaves.left.and.right", .init(en: "Track the frontier", zhHans: "跟踪技术前沿"), .init(en: "Follow recent research and releases, with every story linked to its publisher.", zhHans: "关注新研究与新发布，每条资讯都能追溯原文。")),
+        ("iphone.and.arrow.forward", .init(en: "Private by default", zhHans: "默认保护隐私"), .init(en: "No account needed. Your learning progress and bookmarks stay on this device.", zhHans: "无需账号，学习进度与收藏保存在你的设备上。"))
     ]
 
     var body: some View {
@@ -22,8 +22,9 @@ struct OnboardingView: View {
                     Text(pages[step].1.value(for: settings.language))
                         .font(.largeTitle.bold())
                         .multilineTextAlignment(.center)
-                    PagePurposeView(core: pages[step].2.value(for: settings.language), purpose: pages[step].3.value(for: settings.language))
-                        .padding(.horizontal)
+                    Text(pages[step].2.value(for: settings.language))
+                        .font(.title3).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center).padding(.horizontal)
                     Spacer(minLength: 20)
                     Picker(settings.text("Language", "语言"), selection: $settings.language) {
                         ForEach(AppLanguage.allCases) { language in Text(language.displayName).tag(language) }
@@ -34,7 +35,7 @@ struct OnboardingView: View {
                         if step < pages.count - 1 { withAnimation { step += 1 } }
                         else { settings.hasCompletedOnboarding = true }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.borderedProminent).tint(AppTheme.action)
                     .controlSize(.large)
                     .accessibilityIdentifier("onboarding.continue")
                     Button(settings.text("Skip", "跳过")) { settings.hasCompletedOnboarding = true }
@@ -44,6 +45,7 @@ struct OnboardingView: View {
                 .frame(minHeight: proxy.size.height)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .background(AppTheme.canvas)
         }
     }
 }

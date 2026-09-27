@@ -52,22 +52,12 @@ struct NewsTranslationCoordinator: View {
 struct NewsTranslationStatus: View {
     @EnvironmentObject private var translations: NewsTranslationStore
     var body: some View {
-        if translations.isTranslating {
-            ProgressView("正在设备端翻译英文资讯…").font(.footnote)
-        } else if translations.failed {
-            VStack(alignment: .leading, spacing: 8) {
-                #if targetEnvironment(simulator)
-                Text("当前模拟器不支持 Apple 翻译引擎，保留英文原文。请在真机测试翻译及语言包下载。")
+        if translations.failed {
+            HStack {
+                Text("译文暂不可用，可先阅读原文。")
                     .font(.footnote).foregroundStyle(.secondary)
-                #else
-                Text("译文暂不可用，保留英文原文。首次翻译请联网下载 Apple 语言包，或稍后重试。")
-                    .font(.footnote).foregroundStyle(.secondary)
-                #endif
-                Button("重试翻译") { translations.retry() }.font(.footnote)
+                Button("重试翻译") { translations.retry() }.font(.footnote).frame(minHeight: 44)
             }
-        } else {
-            Text("英文标题和摘要在本机智能翻译，译文自动缓存。首次使用可能需要下载 Apple 语言包。")
-                .font(.footnote).foregroundStyle(.secondary)
         }
     }
 }

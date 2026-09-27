@@ -17,7 +17,7 @@ struct RootView: View {
             }
         }
         .environment(\.locale, Locale(identifier: settings.language.rawValue))
-        .tint(.teal)
+        .tint(AppTheme.teal)
     }
 }
 

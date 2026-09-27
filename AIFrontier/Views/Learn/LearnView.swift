@@ -55,7 +55,7 @@ struct LearnView: View {
             .onChange(of: searchText) { _, _ in proxy.scrollTo("learn.top", anchor: .top) }
             .onChange(of: selectedLevel) { _, _ in proxy.scrollTo("learn.top", anchor: .top) }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AppTheme.canvas)
         .navigationTitle(settings.text("Learn", "学习"))
         .searchable(text: $searchText, prompt: settings.text("Search concepts and applications", "搜索概念与应用"))
         .navigationDestination(for: Lesson.self) { LessonDetailView(lesson: $0) }
@@ -74,26 +74,22 @@ struct LearnView: View {
     }
 
     private var progressCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(settings.text("Your learning path", "你的学习路径")).font(.headline)
-                    Text(settings.text("\(completedCount) of \(CurriculumCatalog.lessons.count) lessons complete", "已完成 \(completedCount) / \(CurriculumCatalog.lessons.count) 节"))
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }
+        FrontierHero(eyebrow: "AI FRONTIER", title: settings.text("Make AI your next skill.", "探索 AI，拓展你的可能。"), subtitle: "") {
+            HStack(alignment: .firstTextBaseline) {
+                Text(settings.text("Your learning path", "你的学习路径")).font(.subheadline)
                 Spacer()
-                Text(progress, format: .percent.precision(.fractionLength(0))).font(.title.bold()).foregroundStyle(AppTheme.teal)
+                Text(progress, format: .percent.precision(.fractionLength(0)))
+                    .font(.system(.title2, design: .rounded, weight: .bold))
             }
-            ProgressView(value: progress).tint(AppTheme.teal)
-        }
-        .padding()
-        .background(.background, in: RoundedRectangle(cornerRadius: 18))
-        .accessibilityIdentifier("learn.progress")
+            ProgressView(value: progress).tint(Color(red: 0.53, green: 0.96, blue: 0.88))
+            Text(settings.text("\(completedCount) of \(CurriculumCatalog.lessons.count) lessons complete", "已完成 \(completedCount) / \(CurriculumCatalog.lessons.count) 节"))
+                .font(.caption).foregroundStyle(.white.opacity(0.85))
+        }.accessibilityIdentifier("learn.progress")
     }
 
     private var levelPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(settings.text("Learning levels", "学习级别"), subtitle: settings.text("Choose by your experience and learning goals.", "按已有经验与学习目标选择。"))
+            SectionHeader(settings.text("Find your starting point", "从适合你的起点出发"))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
                     levelButton(nil, label: settings.text("All", "全部"))
@@ -110,9 +106,11 @@ struct LearnView: View {
 
     private func levelButton(_ level: AudienceLevel?, label: String) -> some View {
         Button(label) { selectedLevel = level }
-            .buttonStyle(.borderedProminent)
-            .tint(selectedLevel == level ? AppTheme.teal : Color(.tertiarySystemFill))
-            .foregroundStyle(selectedLevel == level ? .white : AppTheme.navy)
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 16).frame(minHeight: 44)
+            .foregroundStyle(selectedLevel == level ? Color.white : Color.primary)
+            .background(selectedLevel == level ? AppTheme.action : AppTheme.surface, in: Capsule())
+            .accessibilityAddTraits(selectedLevel == level ? .isSelected : [])
     }
 
     @ViewBuilder
@@ -122,7 +120,7 @@ struct LearnView: View {
         LazyVStack(alignment: .leading, spacing: 10) {
             Label(track.title.value(for: settings.language), systemImage: track.symbol)
                 .font(.title2.bold()).foregroundStyle(AppTheme.navy)
-            PagePurposeView(core: track.coreContent.value(for: settings.language), purpose: track.purpose.value(for: settings.language))
+            Text(track.coreContent.value(for: settings.language)).font(.subheadline).foregroundStyle(.secondary)
             ForEach(Array(lessons.prefix(limit))) { lesson in
                 if lesson.isFree || purchases.hasPro {
                     NavigationLink(value: lesson) { LessonRow(lesson: lesson, locked: false) }
@@ -170,8 +168,7 @@ private struct LessonRow: View {
             Spacer()
             Image(systemName: locked ? "lock.fill" : "chevron.right").foregroundStyle(.tertiary)
         }
-        .padding()
-        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+        .modifier(SurfaceCard())
         .contentShape(Rectangle())
     }
 }

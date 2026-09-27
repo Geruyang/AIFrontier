@@ -51,28 +51,38 @@ struct AIFrontierApp: App {
                 .environmentObject(news)
                 .environmentObject(purchases)
                 .environmentObject(translations)
-                .task {
-                    scheduleRefresh()
-                }
-                .onChange(of: scenePhase, initial: true) { _, phase in
-                    if phase == .active, !isUITesting {
-                        Task {
-                            await purchases.refreshEntitlements()
-                            await news.refresh()
-                        }
+                .task(id: scenePhase) {
+                    guard !isUITesting else { return }
+                    switch scenePhase {
+                    case .active:
+                        // Keep news independent of StoreKit response times.
+                        async let entitlements: Void = purchases.refreshEntitlements()
+                        await news.refreshWhileActive()
+                        await entitlements
+                    case .background:
+                        await scheduleRefresh()
+                    default:
+                        break
                     }
                 }
         }
         .backgroundTask(.appRefresh(Self.refreshIdentifier)) {
             await news.refresh()
-            await MainActor.run { scheduleRefresh() }
+            await scheduleRefresh()
         }
     }
 
-    private func scheduleRefresh() {
+    @MainActor
+    private func scheduleRefresh() async {
         guard !isUITesting else { return }
+        let pending = await BGTaskScheduler.shared.pendingTaskRequests()
+        let existing = pending.first { $0.identifier == Self.refreshIdentifier }
+        let now = Date()
+        guard NewsRefreshPolicy.needsBackgroundRequest(hasPending: existing != nil,
+                                                      earliestDate: existing?.earliestBeginDate, now: now) else { return }
         let request = BGAppRefreshTaskRequest(identifier: Self.refreshIdentifier)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 6 * 60 * 60)
+        request.earliestBeginDate = now.addingTimeInterval(NewsRefreshPolicy.interval)
+        // iOS decides the actual run time; replacement only shortens an older request.
         try? BGTaskScheduler.shared.submit(request)
     }
 }

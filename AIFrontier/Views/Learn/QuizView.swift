@@ -25,7 +25,7 @@ struct QuizView: View {
             .safeAreaInset(edge: .bottom) {
                 if !complete {
                     Button(settings.text(checked ? (index == lesson.questions.count - 1 ? "Finish" : "Next") : "Check answer", checked ? (index == lesson.questions.count - 1 ? "完成" : "下一题") : "检查答案")) { submit() }
-                        .buttonStyle(.borderedProminent).controlSize(.large)
+                        .buttonStyle(.borderedProminent).tint(AppTheme.action).controlSize(.large)
                         .disabled(selected == nil)
                         .accessibilityIdentifier("quiz.next")
                         .frame(maxWidth: .infinity).padding().background(.regularMaterial)
@@ -52,7 +52,6 @@ struct QuizView: View {
             ProgressView(value: Double(index + 1), total: Double(lesson.questions.count))
             Text(settings.text("Question \(index + 1) of \(lesson.questions.count)", "第 \(index + 1) / \(lesson.questions.count) 题"))
                 .font(.caption).foregroundStyle(.secondary)
-            PagePurposeView(core: settings.text("Questions about ", "围绕以下主题的习题：") + lesson.title.value(for: settings.language), purpose: settings.text("Use the linked example to check your understanding, then learn from the answer explanation.", "结合对应例子检查理解，通过答案解释查漏补缺。"))
             Text(question.prompt.value(for: settings.language)).font(.title2.bold())
             if let section = lesson.sections.first(where: { $0.id == question.contextSectionID }) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -101,11 +100,10 @@ struct QuizView: View {
             Image(systemName: passed ? "checkmark.seal.fill" : "arrow.clockwise.circle.fill")
                 .font(.system(size: 70)).foregroundStyle(passed ? AppTheme.teal : .orange)
             Text(settings.text("You scored \(score) of \(lesson.questions.count)", "得分：\(score) / \(lesson.questions.count)")).font(.largeTitle.bold())
-            PagePurposeView(core: settings.text("Your score for ", "本次测验成绩：") + lesson.title.value(for: settings.language), purpose: settings.text("Decide whether to continue learning or review the lesson and try again.", "判断是否继续学习，或复习课程后再次测验。"))
             Text(passed ? settings.text("Good work. Explain one counterexample before moving on.", "完成得很好。继续前，请尝试解释一个反例。") : settings.text("Review the key idea and try again.", "复习关键观点后再试一次。"))
                 .foregroundStyle(.secondary).multilineTextAlignment(.center)
             Button(settings.text("Done", "完成")) { dismiss() }
-                .buttonStyle(.borderedProminent).controlSize(.large)
+                .buttonStyle(.borderedProminent).tint(AppTheme.action).controlSize(.large)
                 .accessibilityIdentifier("quiz.done")
         }
         .frame(maxHeight: .infinity)

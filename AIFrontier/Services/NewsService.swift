@@ -9,7 +9,7 @@ struct URLSessionFeedFetcher: FeedFetching {
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("AIFrontier/1.1 iOS", forHTTPHeaderField: "User-Agent")
+        request.setValue("AIFrontier/1.4 iOS", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
               data.count <= 5_000_000 else { throw URLError(.badServerResponse) }
@@ -38,7 +38,7 @@ enum NewsSelection {
     static func importance(of article: NewsArticle) -> Int {
         let title = article.title.lowercased()
         let context = (title + " " + article.summary + " " + article.categories.joined(separator: " ")).lowercased()
-        let ai = #"(\bai\b|artificial intelligence|generative|language model|\bllm\b|\bgpt[- ]|chatgpt|gemini|deepmind|neural|robotics|\bgpu\b|blackwell|rubin|machine learning)"#
+        let ai = #"(\bai\b|artificial intelligence|generative|language model|\bllm\b|\bgpt[- ]|chatgpt|gemini|deepmind|neural|robotics|\bgpu\b|blackwell|rubin|machine learning|\bclaude\b|\banthropic\b|\bllama\b|\bmistral\b|\bqwen\b|\bdeepseek\b|\bcopilot\b)"#
         guard context.range(of: ai, options: .regularExpression) != nil else { return 0 }
         let exclude = #"(how to|how-to|tutorial|beginner|podcast|webinar|event recap|meet the team|course|tips for)"#
         guard title.range(of: exclude, options: .regularExpression) == nil else { return 0 }
@@ -94,6 +94,26 @@ enum NewsSelection {
     }
 }
 
+/// A foreground cadence and an earliest background request, never a guaranteed iOS wake-up time.
+enum NewsRefreshPolicy {
+    static let interval: TimeInterval = 5 * 60
+
+    static func delay(lastAttempt: Date?, now: Date) -> TimeInterval {
+        guard let lastAttempt else { return 0 }
+        let elapsed = now.timeIntervalSince(lastAttempt)
+        // Device clock changes must not suspend refreshing for hours.
+        guard elapsed >= 0 else { return 0 }
+        return max(0, interval - elapsed)
+    }
+
+    static func needsBackgroundRequest(hasPending: Bool, earliestDate: Date?, now: Date) -> Bool {
+        guard hasPending else { return true }
+        // nil means the existing request can run immediately.
+        guard let earliestDate else { return false }
+        return earliestDate > now.addingTimeInterval(interval)
+    }
+}
+
 @MainActor
 final class NewsService: ObservableObject {
     enum State: Equatable { case idle, loading, loaded, failed(String) }
@@ -105,6 +125,8 @@ final class NewsService: ObservableObject {
     private let sources: [NewsSource]
     private let store: LocalStore
     private let clock: @Sendable () -> Date
+    private var lastAttempt: Date?
+    private var refreshWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     init(fetcher: any FeedFetching = URLSessionFeedFetcher(), sources: [NewsSource] = NewsSource.defaults,
          store: LocalStore, clock: @escaping @Sendable () -> Date = { .now }) {
@@ -117,8 +139,53 @@ final class NewsService: ObservableObject {
         lastRefresh = store.data.lastNewsRefresh
     }
 
+    func refreshIfNeeded() async {
+        // A previous scene may still be unwinding its cancelled request. Its attempt
+        // timestamp is provisional until cleanup completes, so never sleep against it.
+        while state == .loading, !Task.isCancelled { await waitForCurrentRefresh() }
+        guard !Task.isCancelled else { return }
+        guard NewsRefreshPolicy.delay(lastAttempt: lastAttempt ?? lastRefresh, now: clock()) == 0 else { return }
+        await refresh()
+    }
+
+    /// SwiftUI cancels this structured task when the scene leaves the foreground.
+    func refreshWhileActive() async {
+        while !Task.isCancelled {
+            await refreshIfNeeded()
+            let delay = max(1, NewsRefreshPolicy.delay(lastAttempt: lastAttempt ?? lastRefresh, now: clock()))
+            do { try await Task.sleep(for: .seconds(delay)) }
+            catch { return }
+        }
+    }
+
+    private func waitForCurrentRefresh() async {
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard state == .loading, !Task.isCancelled else {
+                    continuation.resume()
+                    return
+                }
+                refreshWaiters[id] = continuation
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.refreshWaiters.removeValue(forKey: id)?.resume()
+            }
+        }
+    }
+
     func refresh() async {
-        guard state != .loading else { return }
+        guard !Task.isCancelled, state != .loading else { return }
+        defer {
+            let waiting = refreshWaiters.values
+            refreshWaiters.removeAll()
+            for continuation in waiting { continuation.resume() }
+        }
+        let previousState = state
+        let previousFailures = sourceFailures
+        let previousAttempt = lastAttempt
+        lastAttempt = clock()
         // Expire cache even if this attempt subsequently fails.
         articles = NewsSelection.select(articles, now: clock())
         state = .loading
@@ -140,6 +207,12 @@ final class NewsService: ObservableObject {
                 case .failure: sourceFailures.append(name)
                 }
             }
+        }
+        guard !Task.isCancelled else {
+            state = previousState
+            sourceFailures = previousFailures
+            lastAttempt = previousAttempt
+            return
         }
         sourceFailures.sort()
         let now = clock()

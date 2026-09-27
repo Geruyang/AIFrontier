@@ -15,13 +15,12 @@ struct ArticleDetailView: View {
                 }
                 Text(translations.translated(article.title, language: settings.language)).font(.largeTitle.bold()).foregroundStyle(AppTheme.navy)
                 Text(article.publishedAt, format: .dateTime.month().day().year()).font(.subheadline).foregroundStyle(.secondary)
-                PagePurposeView(core: settings.text("The announcement summary, publication date, source, and original article.", "这条公告的摘要、发布日期、来源与原文入口。"), purpose: settings.text("Understand what changed and use the original evidence to judge its relevance.", "理解发生了什么变化，结合原始证据判断其意义。"))
                 Divider()
                 Text(translations.translated(article.summary, language: settings.language)).font(.title3).lineSpacing(6)
                 if settings.language == .simplifiedChinese {
-                    NewsTranslationStatus()
+                    if !translations.hasTranslation(for: article) { NewsTranslationStatus() }
                     if translations.hasTranslation(for: article) {
-                        Text("设备端机器翻译 · 请结合原文核对专有名词、数字和技术结论。")
+                        Text("译文 · 技术细节请以原文为准。")
                             .font(.footnote).foregroundStyle(.secondary)
                         DisclosureGroup("查看英文标题与摘要") {
                             VStack(alignment: .leading, spacing: 10) { Text(article.title).bold(); Text(article.summary) }
@@ -33,6 +32,7 @@ struct ArticleDetailView: View {
             }
             .padding()
         }
+        .background(AppTheme.canvas)
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -49,7 +49,7 @@ struct ArticleDetailView: View {
             Label(settings.text("Open original", "打开原文"), systemImage: "arrow.up.right.square")
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.borderedProminent).tint(AppTheme.action)
     }
 
     private var saveButton: some View {
@@ -61,9 +61,8 @@ struct ArticleDetailView: View {
     }
 
     private var evidenceNotice: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(settings.text("Evidence note", "证据说明"), systemImage: "info.circle.fill").font(.headline)
-            Text(settings.text("This item is an official source announcement, selected automatically for AI news signals. AI Frontier has not independently verified the claims. Read the original and its evaluation conditions before drawing conclusions.", "此条目是按 AI 新闻信号自动筛选的官方公告。AI Frontier 未独立核实其中主张。得出结论前请阅读原文及评估条件。"))
+        DisclosureGroup(settings.text("Evidence note", "证据说明")) {
+            Text(settings.text("Read the publisher’s original article for the full context and evaluation details. Publisher claims have not been independently verified by AI Frontier.", "完整背景与评估细节请查阅发布者原文。AI Frontier 未独立核实发布者的主张。"))
                 .font(.subheadline).foregroundStyle(.secondary)
         }
         .padding()

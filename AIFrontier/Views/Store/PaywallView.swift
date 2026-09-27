@@ -12,7 +12,6 @@ struct PaywallView: View {
                 VStack(spacing: 22) {
                     Image(systemName: "sparkles.rectangle.stack.fill").font(.system(size: 62)).foregroundStyle(AppTheme.teal)
                     Text("AI Frontier Pro").font(.largeTitle.bold())
-                    PagePurposeView(core: settings.text("Full-course access, subscription plans, and available trial terms.", "完整课程权限、订阅套餐与可用的试用条款。"), purpose: settings.text("Understand the benefits and renewal terms before choosing a plan.", "了解权益和续费规则，再选择适合自己的套餐。"))
                     Text(settings.text("Learn deeply. Keep up with the field.", "深入学习，持续跟踪前沿。"))
                         .font(.title3).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     VStack(alignment: .leading, spacing: 14) {
@@ -30,7 +29,7 @@ struct PaywallView: View {
                                 Text(settings.text("Check your connection and try again. Your learning progress is still available offline.", "请检查网络后重试。你的学习进度仍可离线使用。"))
                             } actions: {
                                 Button(settings.text("Try again", "重试")) { Task { await purchases.load() } }
-                                    .buttonStyle(.borderedProminent)
+                                    .buttonStyle(.borderedProminent).tint(AppTheme.action)
                             }
                         } else {
                             ProgressView(settings.text("Loading App Store products…", "正在加载 App Store 商品…"))

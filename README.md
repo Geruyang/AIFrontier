@@ -2,32 +2,31 @@
 
 AI Frontier is a local-first iOS app for structured AI learning and AI news tracking. English is the default interface language, with Simplified Chinese available in Settings.
 
-## Version 1.3.0
+## Version 1.4.0
 
-- Resume your last lesson directly from Learn.
-- Review lessons with missed questions in Library, using the latest attempt while preserving your best score.
-- A lesson is complete after at least two-thirds correct answers; older low-scoring completions are corrected on migration.
-- Saved article titles, summaries and links persist beyond the rolling feed window, in both Library and Discover → Saved.
-- Clearing learning data keeps saved news. Started quizzes ask before discarding an unfinished attempt.
-- Clear empty-search feedback, stable learning-level filters, and an always-accessible Settings button.
-- Improved subscription expiry handling, offline entitlement checks, Atom parsing, and translation-cache retention.
+- A new native interface with midnight-blue hero cards, teal/violet accents, editorial news, adaptive dark mode and Dynamic Type.
+- Nine publisher feeds: OpenAI, Google AI, DeepMind, NVIDIA, Microsoft AI, AWS, Hugging Face, MIT and Berkeley AI Research.
+- Five-minute foreground checks, refresh when due on return, and system-scheduled background refresh requests. iOS does **not** guarantee a five-minute background wake-up.
+- Quiet normal operation: source details and update information are available on demand; unavailable content still has useful recovery actions.
+- Tap a trend topic to explore its related stories; search news by publisher as well as title and summary.
+- The lesson resume, review queue, durable bookmarks and quiz safeguards introduced in 1.3 remain available.
 
-See [review and change decisions](docs/IMPROVEMENTS-1.3.0.md) and [verification report](docs/VERIFICATION-1.3.0.md).
+See [news sources and scheduling](docs/NEWS-SOURCES.md), [design and changes](docs/IMPROVEMENTS-1.4.0.md), and [verification](docs/VERIFICATION-1.4.0.md).
 
 ## Included features
 
-- Learning levels describe experience rather than school stages. Each level, course topic, and app page explains its core content and purpose in both languages.
+- Learning levels describe experience rather than school stages. Learning objectives are available on demand in both languages.
 - 600 bilingual learning units: 200 Beginner, 200 Fundamentals, and 200 Advanced
 - 1,800 explanation sections covering concepts, applications, and practical boundaries; 720 explicit example blocks and original local diagrams
 - 1,980 questions with their complete example context, answer explanations, local progress, and best scores
 - 540 new concept-first micro-lessons with independently authored English and Chinese explanations; search by concept or application
 - Chapter/paper references in each lesson; see CONTENT_SOURCES.md for the full curriculum and source list
-- Significant AI announcements from the past calendar month, fetched directly on device from OpenAI, Google AI, Google DeepMind, and NVIDIA
-- Refresh on each launch and return to the foreground, plus pull-to-refresh
-- Date validation, tracking-free URL deduplication, local importance ranking, and visible partial/offline failure status
+- Significant AI announcements from the past calendar month, fetched directly on device from nine publisher feeds
+- Five-minute checks while active, refresh when due on return, and immediate pull-to-refresh
+- Date validation, tracking-free URL deduplication, local importance ranking, and offline recovery and publisher availability details
 - Current-month news cache and bookmarks; no dated built-in briefs masquerading as live news
 - Automatic on-device English-to-Simplified-Chinese translation of fetched news titles and summaries, matching cached translations to exact source text; original English remains available
-- Local trend summaries with an explicit evidence boundary
+- Local trend summaries with an explicit sample boundary and related-story navigation
 - StoreKit 2 monthly and annual subscriptions with a seven-day introductory trial configuration
 - Background refresh requests, privacy manifest, privacy summary, terms, and local data deletion
 - No app-owned server, account system, cloud database, cloud model API, or analytics SDK
@@ -60,7 +59,7 @@ xcodebuild -project AIFrontier.xcodeproj -scheme AIFrontier \
   -configuration Debug -sdk iphonesimulator analyze
 ```
 
-The 1.3.0 verification record is in `docs/VERIFICATION-1.3.0.md`. `TEST_REPORT.md` records the earlier 1.2.1 release.
+The current verification record is in `docs/VERIFICATION-1.4.0.md`; earlier results remain in `docs/VERIFICATION-1.3.0.md`. `TEST_REPORT.md` records the earlier 1.2.1 release.
 
 Debug builds, including the desktop installer, define `DEVELOPER_ACCESS` and open all content for the owner. Release builds exclude that flag and use verified StoreKit entitlements. Developer access is a build setting, not a simulated purchase, login, or hidden public unlock switch.
 
@@ -93,11 +92,11 @@ xcodebuild -exportArchive -archivePath /tmp/AIFrontier.xcarchive \
   -allowProvisioningUpdates
 ```
 
-Download versioned assets from [GitHub Releases](https://github.com/Geruyang/AIFrontier/releases). The 1.3.0 release is build 5:
+Download versioned assets from [GitHub Releases](https://github.com/Geruyang/AIFrontier/releases). The 1.4.0 release is build 6:
 
-- `AIFrontier-1.3.0-signed.ipa`: signed App Store distribution archive, for App Store Connect distribution; it cannot be directly installed on an arbitrary iPhone.
-- `AIFrontier-1.3.0-simulator.zip`: Release build for the iOS Simulator. Unzip and use `xcrun simctl install booted AIFrontier.app`.
-- `SHA256SUMS-1.3.0.txt`: checksums for both binary packages.
+- `AIFrontier-1.4.0-signed.ipa`: signed App Store distribution archive, for App Store Connect distribution; it cannot be directly installed on an arbitrary iPhone.
+- `AIFrontier-1.4.0-simulator.zip`: Release build for the iOS Simulator. Unzip and use `xcrun simctl install booted AIFrontier.app`.
+- `SHA256SUMS-1.4.0.txt`: checksums for both binary packages.
 - GitHub also provides the source at the release tag as ZIP and tar.gz.
 
 Development/owner packages and private device provisioning data are intentionally excluded from the public repository and release. Signing on your own Mac requires selecting your own Apple development team and a unique bundle identifier in Xcode.

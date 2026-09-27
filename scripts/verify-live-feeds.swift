@@ -16,7 +16,8 @@ struct VerifyLiveFeeds {
                 let data = try await fetcher.data(from: source.feedURL)
                 let parsed = try FeedParser.parse(data: data, source: source)
                 let selected = NewsSelection.select(parsed, now: now)
-                print("\(source.name): \(parsed.count) parsed; \(selected.count) significant items in past month")
+                let newest = parsed.map(\.publishedAt).max().map { ISO8601DateFormatter().string(from: $0) } ?? "none"
+                print("\(source.name): \(parsed.count) parsed; \(selected.count) significant items in past month; newest \(newest)")
                 guard !parsed.isEmpty else { throw FeedError.invalidFeed }
                 guard selected.allSatisfy({ $0.publishedAt >= NewsSelection.monthStart(relativeTo: now) && $0.publishedAt <= now }) else {
                     throw FeedError.invalidFeed

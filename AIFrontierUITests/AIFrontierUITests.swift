@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 @MainActor
 final class AIFrontierUITests: XCTestCase {
@@ -9,6 +10,7 @@ final class AIFrontierUITests: XCTestCase {
     func testCompletesFirstLessonQuiz() {
         let app = launchApp()
         XCTAssertTrue(app.navigationBars["Learn"].waitForExistence(timeout: 5))
+        reveal(app.buttons["lesson.course-explorer-what-ai"], in: app)
         app.buttons["lesson.course-explorer-what-ai"].tap()
         let startQuiz = app.buttons["lesson.startQuiz"]
         for _ in 0..<5 where !startQuiz.exists { app.swipeUp() }
@@ -35,10 +37,11 @@ final class AIFrontierUITests: XCTestCase {
             ("Fundamentals", "How data trains models, how results are evaluated, and how prompts and generative AI work.", "Understand why AI succeeds or makes mistakes, and choose and use tools more effectively."),
             ("Advanced", "Task design, model selection, evaluation, retrieval, deployment, and responsible application.", "Apply AI to practical problems, compare solutions, and identify improvements and risks.")
         ]
+        app.buttons["What you'll learn"].firstMatch.tap()
         for (label, core, purpose) in levels {
             app.buttons[label].tap()
-            XCTAssertTrue(app.staticTexts["Core content: " + core].waitForExistence(timeout: 5))
-            XCTAssertTrue(app.staticTexts["Purpose: " + purpose].exists)
+            XCTAssertTrue(app.staticTexts[core].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts[purpose].exists)
         }
         XCTAssertFalse(app.buttons["Elementary"].exists)
         XCTAssertFalse(app.buttons["Secondary"].exists)
@@ -46,30 +49,76 @@ final class AIFrontierUITests: XCTestCase {
         attachScreenshot(app, name: "Advanced level content and purpose")
     }
 
-    func testChinesePagesExplainContentAndPurpose() {
+    func testChinesePagesShowContentWithoutOperationalClutter() {
         let app = launchApp(arguments: ["-ui-testing", "-chinese-news-ui-testing"])
-        for level in ["入门", "基础", "进阶"] {
-            app.buttons[level].tap()
-            assertChinesePurpose(in: app)
-        }
-        XCTAssertTrue(app.staticTexts["核心内容: 学习任务设计、模型选型、效果评估、检索增强、部署与负责任应用。"].exists)
-        for (identifier, label) in [("tab.discover", "资讯"), ("tab.trends", "趋势"), ("tab.library", "资料库")] {
-            tapTab(identifier, label: label, in: app)
-            assertChinesePurpose(in: app)
-        }
+        XCTAssertTrue(app.staticTexts["探索 AI，拓展你的可能。"].waitForExistence(timeout: 5))
+        attachScreenshot(app, name: "Chinese learning home")
+        app.buttons["学习目标"].firstMatch.tap()
+        app.buttons["进阶"].tap()
+        XCTAssertTrue(app.staticTexts["学习任务设计、模型选型、效果评估、检索增强、部署与负责任应用。"].exists)
+        tapTab("tab.discover", label: "资讯", in: app)
+        XCTAssertTrue(app.staticTexts["下一步，正在发生。"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "语言包")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "上次成功检查")).firstMatch.exists)
+        attachScreenshot(app, name: "Chinese editorial news")
+        tapTab("tab.trends", label: "趋势", in: app)
+        XCTAssertTrue(app.staticTexts["从动态中，发现方向。"].waitForExistence(timeout: 5))
+        attachScreenshot(app, name: "Chinese trends")
+        tapTab("tab.library", label: "资料库", in: app)
+        XCTAssertTrue(app.staticTexts["让每次收获，都有迹可循。"].waitForExistence(timeout: 5))
+        attachScreenshot(app, name: "Chinese library")
         app.buttons["library.settings"].tap()
-        assertChinesePurpose(in: app)
         app.staticTexts["隐私摘要"].tap()
-        assertChinesePurpose(in: app)
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.staticTexts["使用条款"].tap()
-        assertChinesePurpose(in: app)
-        attachScreenshot(app, name: "Chinese page content and purpose")
+        XCTAssertTrue(app.staticTexts["保存在本机"].waitForExistence(timeout: 5))
     }
 
-    private func assertChinesePurpose(in app: XCUIApplication) {
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "核心内容:")).firstMatch.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "目的:")).firstMatch.exists)
+    func testNewsSourcesAreAvailableOnDemand() {
+        let app = launchApp()
+        tapTab("tab.discover", label: "Discover", in: app)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Last successful check")).firstMatch.exists)
+        app.buttons["discover.sources"].tap()
+        XCTAssertTrue(app.navigationBars["News sources"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["OpenAI News"].exists)
+        let source = app.staticTexts["Hugging Face"]
+        reveal(source, in: app)
+        XCTAssertTrue(source.exists)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["New AI model release"].waitForExistence(timeout: 5))
+    }
+
+    func testLargeTextNewsKeepsReadingActionsReachable() {
+        let normal = launchApp(arguments: ["-ui-testing", "-chinese-news-ui-testing"])
+        let normalTitle = normal.staticTexts["探索 AI，拓展你的可能。"]
+        XCTAssertTrue(normalTitle.waitForExistence(timeout: 5))
+        let normalHeight = normalTitle.frame.height
+        let app = launchApp(arguments: ["-ui-testing", "-chinese-news-ui-testing", "-UIPreferredContentSizeCategoryName", UIContentSizeCategory.accessibilityExtraExtraExtraLarge.rawValue])
+        let largeTitle = app.staticTexts["探索 AI，拓展你的可能。"]
+        XCTAssertTrue(largeTitle.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(largeTitle.frame.height, normalHeight, "Accessibility font must actually be larger than the default")
+        attachScreenshot(app, name: "Learning at accessibility text size")
+        tapTab("tab.discover", label: "资讯", in: app)
+        let title = app.staticTexts["新 AI 模型发布"]
+        reveal(title, in: app)
+        title.tap()
+        let original = app.buttons["打开原文"]
+        reveal(original, in: app)
+        XCTAssertTrue(original.isHittable)
+        let save = app.buttons["收藏"]
+        reveal(save, in: app)
+        save.tap()
+        XCTAssertTrue(app.buttons["已收藏"].exists)
+        attachScreenshot(app, name: "News actions at accessibility text size")
+    }
+
+    func testTrendTopicOpensRelatedArticle() {
+        let app = launchApp()
+        tapTab("tab.trends", label: "Trends", in: app)
+        let topic = app.buttons["trend.open-source"]
+        reveal(topic, in: app)
+        topic.tap()
+        XCTAssertTrue(app.staticTexts["New AI model release"].waitForExistence(timeout: 5))
+        app.staticTexts["New AI model release"].tap()
+        XCTAssertTrue(app.buttons["Open original"].waitForExistence(timeout: 5))
     }
 
     func testReadsCurrentNewsAndEvidenceBoundary() {
@@ -79,11 +128,12 @@ final class AIFrontierUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Important AI news · past month"].exists)
         app.staticTexts["New AI model release"].tap()
         XCTAssertTrue(app.buttons["Open original"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Evidence note"].exists)
+        XCTAssertTrue(app.buttons["Evidence note"].exists)
     }
 
     func testWrongAnswerShowsExplanationWithoutChangingScore() {
         let app = launchApp()
+        reveal(app.buttons["lesson.course-explorer-what-ai"], in: app)
         app.buttons["lesson.course-explorer-what-ai"].tap()
         app.buttons["lesson.startQuiz"].tap()
         reveal(app.buttons["quiz.choice.1"], in: app)
@@ -171,6 +221,7 @@ final class AIFrontierUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Fundamentals"].exists)
         XCTAssertTrue(app.buttons["Advanced"].exists)
         XCTAssertFalse(app.buttons["Research"].exists)
+        reveal(app.buttons["lesson.course-explorer-what-ai"], in: app)
         app.buttons["lesson.course-explorer-what-ai"].tap()
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["A vivid example"].firstMatch.exists)
@@ -205,7 +256,7 @@ final class AIFrontierUITests: XCTestCase {
         let app = launchApp(arguments: [
             "-onboarding-ui-testing",
             "-UIPreferredContentSizeCategoryName",
-            "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"
+            UIContentSizeCategory.accessibilityExtraExtraExtraLarge.rawValue
         ])
         XCTAssertTrue(app.staticTexts["Learn AI clearly"].waitForExistence(timeout: 5))
         let chinese = app.buttons["简体中文"]
@@ -232,6 +283,7 @@ final class AIFrontierUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         tapTab("tab.learn", label: "Learn", in: app)
         app.buttons["All"].tap()
+        reveal(app.buttons["lesson.course-explorer-what-ai"], in: app)
         app.buttons["lesson.course-explorer-what-ai"].tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let otherLevel = app.buttons["lesson.course-secondary-search"]
@@ -247,11 +299,13 @@ final class AIFrontierUITests: XCTestCase {
         search.typeText("zzzz-no-such-concept")
         XCTAssertTrue(app.staticTexts["No lessons found"].waitForExistence(timeout: 5))
         app.buttons["learn.clearFilters"].tap()
-        XCTAssertTrue(app.buttons["lesson.course-explorer-what-ai"].waitForExistence(timeout: 5))
+        reveal(app.buttons["lesson.course-explorer-what-ai"], in: app)
+        XCTAssertTrue(app.buttons["lesson.course-explorer-what-ai"].exists)
     }
 
     func testFailedQuizAppearsInReviewAndCanResume() {
         let app = launchApp()
+        reveal(app.buttons["lesson.course-explorer-what-ai"], in: app)
         app.buttons["lesson.course-explorer-what-ai"].tap()
         app.buttons["lesson.startQuiz"].tap()
         for question in 0..<6 {
@@ -278,6 +332,7 @@ final class AIFrontierUITests: XCTestCase {
 
     func testClosingStartedQuizRequiresConfirmation() {
         let app = launchApp()
+        reveal(app.buttons["lesson.course-explorer-what-ai"], in: app)
         app.buttons["lesson.course-explorer-what-ai"].tap()
         app.buttons["lesson.startQuiz"].tap()
         let choice = app.buttons["quiz.choice.0"]

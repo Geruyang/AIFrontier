@@ -1,0 +1,35 @@
+{
+  "version": "1.4.0",
+  "build": 6,
+  "testRuns": [
+    {
+      "log": "round1-tests.log",
+      "passed": 74,
+      "failed": 1
+    },
+    {
+      "log": "round2-tests.log",
+      "passed": 64,
+      "failed": 0
+    },
+    {
+      "log": "round3-dark-tests.log",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "log": "accessibility-tests.log",
+      "passed": 2,
+      "failed": 0
+    }
+  ],
+  "distinctPassingTests": 78,
+  "distinctPassingUnitTests": 60,
+  "distinctPassingUITests": 18,
+  "liveSources": 9,
+  "liveSourcesPassed": 9,
+  "selectedRecentArticlesAtVerification": 47,
+  "backgroundWakeIntervalGuaranteed": false,
+  "nativeTabBarVisualAcceptance": "pending-device-verification",
+  "simulatorTabBarIssueReproducedInBaselineAndMinimalNativeApp": true
+}

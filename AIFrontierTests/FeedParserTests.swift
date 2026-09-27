@@ -1,4 +1,5 @@
 import XCTest
+import Combine
 @testable import AIFrontier
 
 private let testSource = NewsSource(id: "test", name: "Test Source", feedURL: URL(string: "https://example.com/feed")!,
@@ -116,12 +117,37 @@ final class NewsSelectionTests: XCTestCase {
         XCTAssertEqual(articles.count, 2)
     }
 
+    func testRecognizesMajorModelAnnouncementsWithoutLiteralAIInTitle() {
+        let input = [news("claude", title: "Introducing Claude 5"),
+                     news("llama", title: "Llama 5 is now available"),
+                     news("qwen", title: "Qwen releases a new reasoning model"),
+                     news("copilot", title: "Introducing Microsoft Copilot updates")]
+        XCTAssertEqual(NewsSelection.select(input, now: testNow).count, 4)
+    }
+
     func testSelectionCapsCacheAndSortsDates() {
         let input = (0..<250).map { news("item-\($0)", date: testNow.addingTimeInterval(-Double($0))) }
         let articles = NewsSelection.select(input, now: testNow)
         XCTAssertEqual(articles.count, 200)
         XCTAssertEqual(articles.first?.publishedAt, testNow)
         XCTAssertTrue(zip(articles, articles.dropFirst()).allSatisfy { $0.publishedAt >= $1.publishedAt })
+    }
+}
+
+final class NewsRefreshPolicyTests: XCTestCase {
+    func testFiveMinuteBoundaryAndDeviceClockChanges() {
+        XCTAssertEqual(NewsRefreshPolicy.delay(lastAttempt: nil, now: testNow), 0)
+        XCTAssertEqual(NewsRefreshPolicy.delay(lastAttempt: testNow, now: testNow.addingTimeInterval(299)), 1)
+        XCTAssertEqual(NewsRefreshPolicy.delay(lastAttempt: testNow, now: testNow.addingTimeInterval(300)), 0)
+        XCTAssertEqual(NewsRefreshPolicy.delay(lastAttempt: testNow, now: testNow.addingTimeInterval(-60)), 0)
+    }
+
+    func testEarlierPendingBackgroundRequestIsNotPostponed() {
+        XCTAssertTrue(NewsRefreshPolicy.needsBackgroundRequest(hasPending: false, earliestDate: nil, now: testNow))
+        XCTAssertFalse(NewsRefreshPolicy.needsBackgroundRequest(hasPending: true, earliestDate: nil, now: testNow))
+        XCTAssertFalse(NewsRefreshPolicy.needsBackgroundRequest(hasPending: true, earliestDate: testNow.addingTimeInterval(60), now: testNow))
+        XCTAssertFalse(NewsRefreshPolicy.needsBackgroundRequest(hasPending: true, earliestDate: testNow.addingTimeInterval(300), now: testNow))
+        XCTAssertTrue(NewsRefreshPolicy.needsBackgroundRequest(hasPending: true, earliestDate: testNow.addingTimeInterval(6 * 60 * 60), now: testNow))
     }
 }
 
@@ -184,6 +210,164 @@ final class NewsServiceTests: XCTestCase {
         store.updateArticles([news("paper", source: "arXiv AI"), news("old-brief", reviewed: true), news("official")])
         let service = NewsService(sources: [testSource], store: store, clock: { testNow })
         XCTAssertEqual(service.articles.map(\.id), ["https://example.com/official"])
+    }
+
+    func testForegroundRefreshSkipsFreshCacheButManualRefreshStillWorks() async {
+        let store = makeStore()
+        store.updateArticles([news("cached")], refreshedAt: testNow.addingTimeInterval(-299))
+        let service = NewsService(fetcher: StubFetcher(rss()), sources: [testSource], store: store, clock: { testNow })
+        await service.refreshIfNeeded()
+        XCTAssertEqual(service.state, .idle)
+        XCTAssertEqual(service.articles.map(\.id), ["https://example.com/cached"])
+        await service.refresh()
+        XCTAssertEqual(service.state, .loaded)
+        XCTAssertTrue(service.articles.contains { $0.id == "https://example.com/new" })
+    }
+
+    func testForegroundRefreshFetchesAtFiveMinuteBoundary() async {
+        let store = makeStore()
+        store.updateArticles([], refreshedAt: testNow.addingTimeInterval(-300))
+        let service = NewsService(fetcher: StubFetcher(rss()), sources: [testSource], store: store, clock: { testNow })
+        await service.refreshIfNeeded()
+        XCTAssertEqual(service.state, .loaded)
+        XCTAssertEqual(service.articles.map(\.id), ["https://example.com/new"])
+    }
+
+    func testAutomaticFailureDoesNotCauseAnImmediateRetryLoop() async {
+        let fetcher = StubFetcher(nil)
+        let service = NewsService(fetcher: fetcher, sources: [testSource], store: makeStore(), clock: { testNow })
+        await service.refreshIfNeeded()
+        await service.refreshIfNeeded()
+        let calls = await fetcher.calls
+        XCTAssertEqual(calls, 1)
+        if case .failed = service.state {} else { XCTFail("Expected network failure") }
+    }
+
+    private actor WaitingFetcher: FeedFetching {
+        private var started = false
+        private var waiter: CheckedContinuation<Void, Never>?
+        private(set) var calls = 0
+        func waitUntilStarted() async {
+            if started { return }
+            await withCheckedContinuation { waiter = $0 }
+        }
+        func data(from url: URL) async throws -> Data {
+            calls += 1
+            started = true
+            waiter?.resume()
+            waiter = nil
+            try await Task.sleep(for: .seconds(30))
+            return rss()
+        }
+    }
+
+    func testOverlappingRefreshIsCoalescedAndCancellationRestoresCache() async {
+        let store = makeStore()
+        store.updateArticles([news("cached")], refreshedAt: testNow.addingTimeInterval(-600))
+        let fetcher = WaitingFetcher()
+        let service = NewsService(fetcher: fetcher, sources: [testSource], store: store, clock: { testNow })
+        let task = Task { await service.refresh() }
+        await fetcher.waitUntilStarted()
+        await service.refresh()
+        XCTAssertEqual(service.state, .loading)
+        let calls = await fetcher.calls
+        XCTAssertEqual(calls, 1)
+        task.cancel()
+        await task.value
+        XCTAssertEqual(service.state, .idle)
+        XCTAssertEqual(service.articles.map(\.id), ["https://example.com/cached"])
+        XCTAssertEqual(service.lastRefresh, testNow.addingTimeInterval(-600))
+        XCTAssertTrue(service.sourceFailures.isEmpty)
+    }
+
+    private actor DelayedCancellationFetcher: FeedFetching {
+        private var started = false
+        private var startedWaiter: CheckedContinuation<Void, Never>?
+        private var finishFirst: CheckedContinuation<Void, Never>?
+        private var calls = 0
+
+        func waitUntilStarted() async {
+            if started { return }
+            await withCheckedContinuation { startedWaiter = $0 }
+        }
+        func releaseFirstRequest() { finishFirst?.resume(); finishFirst = nil }
+        func data(from url: URL) async throws -> Data {
+            calls += 1
+            if calls == 1 {
+                // Model URLSession taking time to finish cancelled request cleanup.
+                await withCheckedContinuation { continuation in
+                    finishFirst = continuation
+                    started = true
+                    startedWaiter?.resume()
+                    startedWaiter = nil
+                }
+                try Task.checkCancellation()
+            }
+            return rss()
+        }
+    }
+
+    func testReturningToForegroundWaitsForCancelledRequestThenRefreshesImmediately() async {
+        let store = makeStore()
+        store.updateArticles([news("cached")], refreshedAt: testNow.addingTimeInterval(-600))
+        let fetcher = DelayedCancellationFetcher()
+        let service = NewsService(fetcher: fetcher, sources: [testSource], store: store, clock: { testNow })
+        let previousScene = Task { await service.refreshWhileActive() }
+        await fetcher.waitUntilStarted()
+        previousScene.cancel()
+
+        let entered = expectation(description: "New foreground loop entered")
+        let refreshed = expectation(description: "News refreshed without a five-minute delay")
+        let observation = service.$state.filter { $0 == .loaded }.sink { _ in refreshed.fulfill() }
+        let nextScene = Task {
+            entered.fulfill()
+            await service.refreshWhileActive()
+        }
+        await fulfillment(of: [entered], timeout: 2)
+        await fetcher.releaseFirstRequest()
+        await previousScene.value
+        await fulfillment(of: [refreshed], timeout: 2)
+        observation.cancel()
+        nextScene.cancel()
+        await nextScene.value
+        XCTAssertEqual(service.lastRefresh, testNow)
+        XCTAssertTrue(service.articles.contains { $0.id == "https://example.com/new" })
+    }
+
+    func testForegroundWaitCanBeCancelledBeforeOldRequestFinishesCleaningUp() async {
+        let fetcher = DelayedCancellationFetcher()
+        let service = NewsService(fetcher: fetcher, sources: [testSource], store: makeStore(), clock: { testNow })
+        let previousScene = Task { await service.refresh() }
+        await fetcher.waitUntilStarted()
+        previousScene.cancel()
+        let entered = expectation(description: "New loop entered")
+        let stopped = expectation(description: "New loop cancellation is independent of old request")
+        let nextScene = Task {
+            entered.fulfill()
+            await service.refreshWhileActive()
+            stopped.fulfill()
+        }
+        await fulfillment(of: [entered], timeout: 2)
+        nextScene.cancel()
+        await fulfillment(of: [stopped], timeout: 2)
+        await fetcher.releaseFirstRequest()
+        await previousScene.value
+        await nextScene.value
+        XCTAssertEqual(service.state, .idle)
+        XCTAssertNil(service.lastRefresh)
+    }
+
+    func testAlreadyCancelledRefreshDoesNotPublishAnErrorOrCacheData() async {
+        let store = makeStore()
+        let service = NewsService(fetcher: StubFetcher(rss()), sources: [testSource], store: store, clock: { testNow })
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            await service.refresh()
+        }
+        await task.value
+        XCTAssertEqual(service.state, .idle)
+        XCTAssertNil(service.lastRefresh)
+        XCTAssertTrue(store.data.cachedArticles.isEmpty)
     }
 
     private func makeStore() -> LocalStore {

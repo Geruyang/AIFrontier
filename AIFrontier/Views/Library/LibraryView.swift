@@ -11,7 +11,17 @@ struct LibraryView: View {
 
     var body: some View {
         List {
-            PagePurposeView(core: settings.text("Completed lessons, quiz progress, saved news, and settings.", "已完成课程、测验进度、收藏资讯与设置入口。"), purpose: settings.text("Return to useful material, review what you learned, and continue your learning path.", "快速找回有用内容，复习已学知识并继续学习。"))
+            FrontierHero(eyebrow: settings.text("YOUR COLLECTION", "属于你的知识库"),
+                         title: settings.text("Keep what moves you.", "让每次收获，都有迹可循。"),
+                         subtitle: settings.text("Your progress, your next step, your best reads.", "记录进步，温故知新，收藏灵感。")) {
+                HStack(spacing: 20) {
+                    Label("\(completed.count)", systemImage: "checkmark.seal")
+                        .accessibilityLabel(settings.text("\(completed.count) completed lessons", "已完成 \(completed.count) 节课程"))
+                    Label("\(saved.count)", systemImage: "bookmark")
+                        .accessibilityLabel(settings.text("\(saved.count) saved articles", "已收藏 \(saved.count) 篇资讯"))
+                }.font(.title3.bold())
+            }
+            .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             Section(settings.text("Progress", "学习进度")) {
                 HStack {
                     Label(settings.text("Completed lessons", "已完成课程"), systemImage: "checkmark.circle")
@@ -52,7 +62,7 @@ struct LibraryView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(translations.translated(article.title, language: settings.language)).lineLimit(2)
                                 if settings.language == .simplifiedChinese, translations.hasTranslation(for: article) {
-                                    Text("设备端机器翻译").font(.caption).foregroundStyle(.secondary)
+                                    Text("译文").font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -60,6 +70,7 @@ struct LibraryView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden).background(AppTheme.canvas)
         .navigationTitle(settings.text("Library", "资料库"))
         .toolbar {
             NavigationLink { SettingsView() } label: { Label(settings.text("Settings & privacy", "设置与隐私"), systemImage: "gearshape") }
