@@ -5,6 +5,7 @@ struct LearnView: View {
     @EnvironmentObject private var store: LocalStore
     @EnvironmentObject private var purchases: PurchaseManager
     @State private var selectedLevel: AudienceLevel?
+    @State private var didInitializeLevel = false
     @State private var showPaywall = false
     @State private var searchText = ""
     @State private var visibleLimits: [String: Int] = [:]
@@ -29,6 +30,21 @@ struct LearnView: View {
                 LazyVStack(alignment: .leading, spacing: 22) {
                     progressCard.id("learn.top")
                     levelPicker
+                    if searchText.isEmpty, let lesson = CurriculumCatalog.lessons.first(where: { $0.id == store.data.lastVisitedLessonID }),
+                       selectedLevel == nil || selectedLevel == lesson.level {
+                        NavigationLink(value: lesson) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label(settings.text("Continue learning", "继续学习"), systemImage: "arrow.right.circle.fill").font(.headline)
+                                Text(lesson.title.value(for: settings.language)).font(.subheadline)
+                            }.frame(maxWidth: .infinity, alignment: .leading).padding()
+                                .background(AppTheme.paleTeal, in: RoundedRectangle(cornerRadius: 16))
+                        }.accessibilityIdentifier("learn.continue")
+                    }
+                    if matching.isEmpty {
+                        EmptyStateView(symbol: "magnifyingglass", title: settings.text("No lessons found", "未找到课程"), message: settings.text("Try another keyword or clear the filters.", "请更换关键词，或清除筛选条件。"))
+                        Button(settings.text("Clear filters", "清除筛选")) { searchText = ""; selectedLevel = nil }
+                            .accessibilityIdentifier("learn.clearFilters")
+                    }
                     ForEach(CourseTrack.allCases) { track in
                         let lessons = matching.filter { $0.track == track }
                         if !lessons.isEmpty { trackSection(track, lessons: lessons) }
@@ -50,7 +66,9 @@ struct LearnView: View {
             }
         }
         .sheet(isPresented: $showPaywall) { PaywallView() }
-        .onAppear { selectedLevel = selectedLevel ?? settings.preferredLevel }
+        .onAppear {
+            if !didInitializeLevel { selectedLevel = settings.preferredLevel; didInitializeLevel = true }
+        }
         .onChange(of: settings.preferredLevel) { _, newLevel in selectedLevel = newLevel }
         .onChange(of: selectedLevel) { _, _ in visibleLimits = [:] }
     }

@@ -11,3 +11,5 @@ deliverables/
 *.mobileprovision
 .env
 .env.*
+__pycache__/
+*.pyc

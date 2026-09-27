@@ -10,6 +10,7 @@ struct QuizView: View {
     @State private var score = 0
     @State private var complete = false
     @State private var checked = false
+    @State private var confirmExit = false
 
     var body: some View {
         NavigationStack {
@@ -32,9 +33,17 @@ struct QuizView: View {
             }
             .navigationTitle(settings.text("Knowledge check", "知识测验"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(settings.text("Close", "关闭")) { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(settings.text("Close", "关闭")) {
+                if !complete && (selected != nil || index > 0) { confirmExit = true } else { dismiss() }
+            } } }
         }
         .interactiveDismissDisabled(!complete)
+        .alert(settings.text("Leave this quiz?", "退出本次测验？"), isPresented: $confirmExit) {
+            Button(settings.text("Leave quiz", "退出测验"), role: .destructive) { dismiss() }
+            Button(settings.text("Keep learning", "继续答题"), role: .cancel) {}
+        } message: {
+            Text(settings.text("This attempt will not be saved. Your previous scores will stay.", "本次未完成的答题不会保存，之前的成绩不受影响。"))
+        }
     }
 
     private var questionView: some View {

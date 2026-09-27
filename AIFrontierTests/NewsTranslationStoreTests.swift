@@ -8,6 +8,15 @@ final class NewsTranslationStoreTests: XCTestCase {
         .init(id: "one", title: title, summary: summary, url: URL(string: "https://example.com/news")!, sourceName: "OpenAI News", publishedAt: .now, languageCode: "en", categories: ["AI"], isReviewed: false)
     }
 
+    func testLargeActiveArticleSetDoesNotEvictItsOwnTranslations() async {
+        let store = NewsTranslationStore(defaults: defaults())
+        let articles = (0..<401).map { article(title: "Title \($0)", summary: "Summary \($0)") }
+        await store.run(inputs: store.pending(for: articles)) { inputs in
+            inputs.map { .init(id: $0.id, source: $0.text, text: "译文 " + $0.text) }
+        }
+        XCTAssertTrue(store.pending(for: articles).isEmpty)
+    }
+
     func testOutOfOrderResponsesMatchOriginalTextAndRejectWrongIdentifiers() {
         let store = NewsTranslationStore(defaults: defaults())
         let news = article()

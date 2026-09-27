@@ -223,6 +223,75 @@ final class AIFrontierUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["学习"].waitForExistence(timeout: 5))
     }
 
+    func testAllFilterSurvivesReturningFromLesson() {
+        let app = launchApp()
+        tapTab("tab.library", label: "Library", in: app)
+        app.buttons["library.settings"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Preferred level,")).firstMatch.tap()
+        app.buttons["Beginner"].tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        tapTab("tab.learn", label: "Learn", in: app)
+        app.buttons["All"].tap()
+        app.buttons["lesson.course-explorer-what-ai"].tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let otherLevel = app.buttons["lesson.course-secondary-search"]
+        reveal(otherLevel, in: app)
+        XCTAssertTrue(otherLevel.exists)
+
+    }
+
+    func testSearchEmptyStateCanClearFilters() {
+        let app = launchApp()
+        let search = app.searchFields.firstMatch
+        search.tap()
+        search.typeText("zzzz-no-such-concept")
+        XCTAssertTrue(app.staticTexts["No lessons found"].waitForExistence(timeout: 5))
+        app.buttons["learn.clearFilters"].tap()
+        XCTAssertTrue(app.buttons["lesson.course-explorer-what-ai"].waitForExistence(timeout: 5))
+    }
+
+    func testFailedQuizAppearsInReviewAndCanResume() {
+        let app = launchApp()
+        app.buttons["lesson.course-explorer-what-ai"].tap()
+        app.buttons["lesson.startQuiz"].tap()
+        for question in 0..<6 {
+            let choice = app.buttons["quiz.choice.\((question + 1) % 3)"]
+            reveal(choice, in: app)
+            choice.tap()
+            app.buttons["quiz.next"].tap()
+            app.buttons["quiz.next"].tap()
+        }
+        XCTAssertTrue(app.staticTexts["You scored 0 of 6"].waitForExistence(timeout: 3))
+        app.buttons["quiz.done"].tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["learn.continue"].waitForExistence(timeout: 3))
+        app.buttons["learn.continue"].tap()
+        XCTAssertTrue(app.buttons["lesson.startQuiz"].waitForExistence(timeout: 3))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        tapTab("tab.library", label: "Library", in: app)
+        XCTAssertTrue(app.staticTexts["0 / 600"].waitForExistence(timeout: 3))
+        let review = app.buttons["review.course-explorer-what-ai"]
+        XCTAssertTrue(review.exists)
+        review.tap()
+        XCTAssertTrue(app.buttons["lesson.startQuiz"].waitForExistence(timeout: 3))
+    }
+
+    func testClosingStartedQuizRequiresConfirmation() {
+        let app = launchApp()
+        app.buttons["lesson.course-explorer-what-ai"].tap()
+        app.buttons["lesson.startQuiz"].tap()
+        let choice = app.buttons["quiz.choice.0"]
+        reveal(choice, in: app)
+        choice.tap()
+        app.buttons["Close"].tap()
+        XCTAssertTrue(app.alerts["Leave this quiz?"].waitForExistence(timeout: 3))
+        app.alerts.buttons["Keep learning"].tap()
+        XCTAssertTrue(app.buttons["quiz.next"].isEnabled)
+        app.buttons["Close"].tap()
+        app.alerts.buttons["Leave quiz"].tap()
+        XCTAssertTrue(app.buttons["lesson.startQuiz"].waitForExistence(timeout: 3))
+    }
+
     private func launchApp(arguments: [String] = ["-ui-testing"]) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = arguments

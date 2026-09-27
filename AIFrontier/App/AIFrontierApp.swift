@@ -56,7 +56,10 @@ struct AIFrontierApp: App {
                 }
                 .onChange(of: scenePhase, initial: true) { _, phase in
                     if phase == .active, !isUITesting {
-                        Task { await news.refresh() }
+                        Task {
+                            await purchases.refreshEntitlements()
+                            await news.refresh()
+                        }
                     }
                 }
         }

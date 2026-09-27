@@ -25,6 +25,8 @@ final class NewsTranslationStore: ObservableObject {
     private let defaults: UserDefaults
     private let storageKey = "news.translations.en.zh-Hans.v1"
     private var activeRunID: UUID?
+    private var retainedKeys: Set<String> = []
+    private var activeInputKeys: Set<String> = []
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -42,6 +44,10 @@ final class NewsTranslationStore: ObservableObject {
 
     func hasTranslation(for article: NewsArticle) -> Bool {
         entries[Self.key(for: article.title)] != nil && (article.summary.isEmpty || entries[Self.key(for: article.summary)] != nil)
+    }
+
+    func retainTranslations(for articles: [NewsArticle]) {
+        retainedKeys = Set(articles.flatMap { [$0.title, $0.summary] }.map(Self.key(for:)))
     }
 
     func pending(for articles: [NewsArticle]) -> [TranslationInput] {
@@ -65,7 +71,11 @@ final class NewsTranslationStore: ObservableObject {
             accepted.insert(output.id)
         }
         if entries.count > 800 {
-            entries = Dictionary(uniqueKeysWithValues: entries.sorted { $0.value.created > $1.value.created }.prefix(800).map { ($0.key, $0.value) })
+            // Saved articles can outlive the rolling news cache. Never evict text that
+            // is still referenced or belongs to the batch currently being translated.
+            let recent = Set(entries.sorted { $0.value.created > $1.value.created }.prefix(800).map(\.key))
+            let keep = recent.union(retainedKeys).union(activeInputKeys)
+            entries = entries.filter { keep.contains($0.key) }
         }
         if let encoded = try? JSONEncoder().encode(entries) { defaults.set(encoded, forKey: storageKey) }
         return accepted.count
@@ -78,9 +88,10 @@ final class NewsTranslationStore: ObservableObject {
         guard !inputs.isEmpty else { return }
         let runID = UUID()
         activeRunID = runID
+        activeInputKeys = Set(inputs.map(\.id))
         isTranslating = true
         failed = false
-        defer { if activeRunID == runID { isTranslating = false; activeRunID = nil } }
+        defer { if activeRunID == runID { isTranslating = false; activeRunID = nil; activeInputKeys = [] } }
         do {
             for start in stride(from: 0, to: inputs.count, by: 40) {
                 try Task.checkCancellation()

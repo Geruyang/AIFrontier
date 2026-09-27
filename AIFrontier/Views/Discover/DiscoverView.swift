@@ -11,13 +11,11 @@ struct DiscoverView: View {
     @State private var searchText = ""
 
     private var visibleArticles: [NewsArticle] {
-        let filtered = news.articles.filter { article in
-            let included: Bool = switch filter {
-            case .important, .latest: true
-            case .saved: store.isBookmarked(article.id)
-            }
+        let candidates = filter == .saved ? store.savedArticles : news.articles
+        let searchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filtered = candidates.filter { article in
             let matches = searchText.isEmpty || article.title.localizedCaseInsensitiveContains(searchText) || article.summary.localizedCaseInsensitiveContains(searchText) || translations.translated(article.title, language: settings.language).localizedCaseInsensitiveContains(searchText) || translations.translated(article.summary, language: settings.language).localizedCaseInsensitiveContains(searchText)
-            return included && matches
+            return matches
         }
         return filter == .important ? filtered.sorted {
             let a = NewsSelection.importance(of: $0), b = NewsSelection.importance(of: $1)
@@ -28,7 +26,7 @@ struct DiscoverView: View {
     var body: some View {
         List {
             VStack(alignment: .leading, spacing: 8) {
-                Text(settings.text("Important AI news · past month", "重要 AI 新闻 · 近一个月")).font(.headline)
+                Text(filter == .saved ? settings.text("Saved articles · all dates", "收藏资讯 · 全部日期") : settings.text("Important AI news · past month", "重要 AI 新闻 · 近一个月")).font(.headline)
                 PagePurposeView(core: settings.text("Important AI releases, research, safety, and industry announcements from the past month.", "近一个月的重要 AI 发布、研发、安全与行业公告。"), purpose: settings.text("Keep up with changes, find relevant developments, and read original sources for details.", "掌握最新动态，发现值得关注的进展，并通过原始来源深入了解。"))
                 Text(settings.text("Official public announcements, selected using release, research, safety, and industry signals. Updates on every open or return; coverage depends on these sources.", "按发布、研究、安全和行业信号筛选官方公开公告。每次打开或返回时更新，覆盖范围取决于这些来源。"))
                     .font(.footnote).foregroundStyle(.secondary)
@@ -50,13 +48,13 @@ struct DiscoverView: View {
             .listRowBackground(Color.clear)
 
             if visibleArticles.isEmpty {
-                EmptyStateView(symbol: "newspaper", title: settings.text("No matching news", "暂无符合条件的新闻"), message: settings.text("Only significant AI announcements dated within the past month appear here. Pull to refresh or try another filter.", "这里只显示近一个月的重要 AI 公告。可下拉刷新或更换筛选条件。"))
+                EmptyStateView(symbol: "newspaper", title: settings.text("No matching news", "暂无符合条件的新闻"), message: filter == .saved ? settings.text("Save articles to keep them here, or try another search.", "收藏的文章会保留在这里，也可尝试更换搜索词。") : settings.text("Only significant AI announcements dated within the past month appear here. Pull to refresh or try another filter.", "这里只显示近一个月的重要 AI 公告。可下拉刷新或更换筛选条件。"))
                     .listRowBackground(Color.clear)
             } else {
                 ForEach(visibleArticles) { article in
                     NavigationLink(value: article) { ArticleRow(article: article) }
                         .swipeActions(edge: .trailing) {
-                            Button { store.toggleBookmark(articleID: article.id) } label: {
+                            Button { store.toggleBookmark(article) } label: {
                                 Label(settings.text("Save", "收藏"), systemImage: store.isBookmarked(article.id) ? "bookmark.slash" : "bookmark")
                             }
                             .tint(AppTheme.teal)

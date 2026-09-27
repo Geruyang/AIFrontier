@@ -2,7 +2,19 @@
 
 AI Frontier is a local-first iOS app for structured AI learning and AI news tracking. English is the default interface language, with Simplified Chinese available in Settings.
 
-## Included in the MVP
+## Version 1.3.0
+
+- Resume your last lesson directly from Learn.
+- Review lessons with missed questions in Library, using the latest attempt while preserving your best score.
+- A lesson is complete after at least two-thirds correct answers; older low-scoring completions are corrected on migration.
+- Saved article titles, summaries and links persist beyond the rolling feed window, in both Library and Discover → Saved.
+- Clearing learning data keeps saved news. Started quizzes ask before discarding an unfinished attempt.
+- Clear empty-search feedback, stable learning-level filters, and an always-accessible Settings button.
+- Improved subscription expiry handling, offline entitlement checks, Atom parsing, and translation-cache retention.
+
+See [review and change decisions](docs/IMPROVEMENTS-1.3.0.md) and [verification report](docs/VERIFICATION-1.3.0.md).
+
+## Included features
 
 - Learning levels describe experience rather than school stages. Each level, course topic, and app page explains its core content and purpose in both languages.
 - 600 bilingual learning units: 200 Beginner, 200 Fundamentals, and 200 Advanced
@@ -37,6 +49,9 @@ xcodegen generate
 xcodebuild -project AIFrontier.xcodeproj -scheme AIFrontier \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' test
 xcodebuild -project AIFrontier.xcodeproj -scheme AIFrontier \
+  -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
+  ENABLE_TESTABILITY=YES ONLY_ACTIVE_ARCH=YES test
+xcodebuild -project AIFrontier.xcodeproj -scheme AIFrontier \
   -configuration Release -sdk iphonesimulator build
 xcodebuild -project AIFrontier.xcodeproj -scheme AIFrontier \
   -configuration Release -destination 'generic/platform=iOS' \
@@ -45,7 +60,7 @@ xcodebuild -project AIFrontier.xcodeproj -scheme AIFrontier \
   -configuration Debug -sdk iphonesimulator analyze
 ```
 
-The complete verification record is in `TEST_REPORT.md`.
+The 1.3.0 verification record is in `docs/VERIFICATION-1.3.0.md`. `TEST_REPORT.md` records the earlier 1.2.1 release.
 
 Debug builds, including the desktop installer, define `DEVELOPER_ACCESS` and open all content for the owner. Release builds exclude that flag and use verified StoreKit entitlements. Developer access is a build setting, not a simulated purchase, login, or hidden public unlock switch.
 
@@ -78,9 +93,16 @@ xcodebuild -exportArchive -archivePath /tmp/AIFrontier.xcarchive \
   -allowProvisioningUpdates
 ```
 
-The public signed package is `deliverables/AIFrontier-1.2.1-signed.ipa` (build 4). The owner package is `deliverables/AIFrontier-1.2.1-owner-signed.ipa`, signed for development testing with all content available. The desktop installer builds the same owner configuration. Older packages are retained for reference.
+Download versioned assets from [GitHub Releases](https://github.com/Geruyang/AIFrontier/releases). The 1.3.0 release is build 5:
 
-For physical-device testing, double-click `/Users/geruyang/Desktop/安装AIFrontier.command`. It builds the current source using development signing and installs it on your connected device. The App Store Connect IPA above is for distribution, not direct installation.
+- `AIFrontier-1.3.0-signed.ipa`: signed App Store distribution archive, for App Store Connect distribution; it cannot be directly installed on an arbitrary iPhone.
+- `AIFrontier-1.3.0-simulator.zip`: Release build for the iOS Simulator. Unzip and use `xcrun simctl install booted AIFrontier.app`.
+- `SHA256SUMS-1.3.0.txt`: checksums for both binary packages.
+- GitHub also provides the source at the release tag as ZIP and tar.gz.
+
+Development/owner packages and private device provisioning data are intentionally excluded from the public repository and release. Signing on your own Mac requires selecting your own Apple development team and a unique bundle identifier in Xcode.
+
+For physical-device testing, run `scripts/install-device.command` from your clone after configuring signing. It builds the current source using development signing and installs it on your connected device. The App Store Connect IPA above is for distribution, not direct installation.
 
 News significance is selected locally using release, research, safety, policy, and industry terms. These signals do not provide independent verification or complete industry coverage. Publisher feeds are English; the optional Chinese interface translates titles and summaries on device with Apple Translation. Missing dates, future dates, old items, and tutorial headlines are excluded. On failure, the app shows only still-current cached announcements and preserves the last successful-check timestamp.
 

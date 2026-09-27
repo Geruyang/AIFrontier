@@ -17,6 +17,7 @@ struct NewsTranslationCoordinator: View {
     var body: some View {
         Color.clear.frame(width: 0, height: 0)
             .task(id: workID) {
+                translations.retainTranslations(for: articles)
                 guard scenePhase != .background, settings.language == .simplifiedChinese, !translations.failed, !translations.pending(for: articles).isEmpty else {
                     configuration = nil
                     return

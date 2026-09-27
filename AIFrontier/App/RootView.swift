@@ -24,6 +24,7 @@ struct RootView: View {
 struct MainTabView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var news: NewsService
+    @EnvironmentObject private var store: LocalStore
 
     var body: some View {
         TabView {
@@ -51,6 +52,6 @@ struct MainTabView: View {
                         .accessibilityIdentifier("tab.library")
                 }
         }
-        .background { NewsTranslationCoordinator(articles: news.articles) }
+        .background { NewsTranslationCoordinator(articles: news.articles + store.savedArticles) }
     }
 }

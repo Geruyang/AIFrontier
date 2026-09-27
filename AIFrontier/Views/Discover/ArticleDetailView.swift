@@ -53,7 +53,7 @@ struct ArticleDetailView: View {
     }
 
     private var saveButton: some View {
-        Button { store.toggleBookmark(articleID: article.id) } label: {
+        Button { store.toggleBookmark(article) } label: {
             Label(store.isBookmarked(article.id) ? settings.text("Saved", "已收藏") : settings.text("Save", "收藏"), systemImage: store.isBookmarked(article.id) ? "bookmark.fill" : "bookmark")
                 .frame(maxWidth: .infinity)
         }

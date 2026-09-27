@@ -65,6 +65,19 @@ final class FeedParserTests: XCTestCase {
         }
     }
 
+    func testNestedAtomSourceDoesNotReplaceArticleIdentity() throws {
+        let xml = """
+        <feed><entry><title>Introducing an AI model</title><id>article-id</id>
+        <link href="https://example.com/article"/><published>2026-09-15T12:00:00Z</published>
+        <source><title>Publisher feed</title><id>feed-id</id><link href="https://example.com/feed"/></source>
+        <summary>Article summary</summary></entry></feed>
+        """
+        let article = try XCTUnwrap(FeedParser.parse(data: Data(xml.utf8), source: testSource).first)
+        XCTAssertEqual(article.title, "Introducing an AI model")
+        XCTAssertEqual(article.id, "article-id")
+        XCTAssertEqual(article.url.absoluteString, "https://example.com/article")
+    }
+
     func testValidEmptyFeedIsSuccessButUnsupportedOrMalformedFeedFails() throws {
         XCTAssertTrue(try FeedParser.parse(data: Data("<rss><channel/></rss>".utf8), source: testSource).isEmpty)
         XCTAssertThrowsError(try FeedParser.parse(data: Data("<html><body>Error</body></html>".utf8), source: testSource))

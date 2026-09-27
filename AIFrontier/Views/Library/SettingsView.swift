@@ -27,6 +27,7 @@ struct SettingsView: View {
                 HStack { Text(settings.text("Access", "访问权限")); Spacer(); Text(EntitlementPolicy.developerAccess ? settings.text("Developer · all content", "开发者 · 全部内容") : (purchases.hasPro ? "Pro" : "Free")).foregroundStyle(.secondary) }
                 if !EntitlementPolicy.developerAccess {
                     Button(settings.text("Restore purchases", "恢复购买")) { Task { await purchases.restore() } }
+                    if let error = purchases.errorMessage { Text(error).font(.footnote).foregroundStyle(.red) }
                     Link(settings.text("Manage subscription", "管理订阅"), destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
                 }
             }
@@ -46,7 +47,7 @@ struct SettingsView: View {
             Button(settings.text("Delete", "删除"), role: .destructive) { store.clearLearningData() }
             Button(settings.text("Cancel", "取消"), role: .cancel) {}
         } message: {
-            Text(settings.text("Completed lessons, scores, and saved items will be removed from this device.", "本机上的课程进度、分数和收藏将被删除。"))
+            Text(settings.text("Completed lessons, scores, review history, and your last lesson will be removed. Saved news will be kept.", "本机上的课程进度、分数、复习记录和上次学习位置将被删除，资讯收藏会保留。"))
         }
     }
 }

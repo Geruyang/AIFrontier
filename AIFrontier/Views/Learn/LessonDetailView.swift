@@ -3,10 +3,19 @@ import SwiftUI
 struct LessonDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var store: LocalStore
+    @EnvironmentObject private var purchases: PurchaseManager
     let lesson: Lesson
     @State private var showQuiz = false
 
     var body: some View {
+        if lesson.isFree || purchases.hasPro {
+            lessonContent.onAppear { store.visit(lessonID: lesson.id) }
+        } else {
+            PaywallView()
+        }
+    }
+
+    private var lessonContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Label(lesson.track.title.value(for: settings.language), systemImage: lesson.track.symbol)

@@ -174,6 +174,7 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
     private var categories: [String] = []
     private var buffers: [String] = []
     private var insideItem = false
+    private var itemDepth = 0
     private var atomLink: String?
     fileprivate var recognizedRoot = false
     fileprivate var articles: [NewsArticle] = []
@@ -185,11 +186,12 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
         let element = elementName.lowercased()
         if buffers.isEmpty { recognizedRoot = ["rss", "feed", "rdf:rdf"].contains(element) }
         buffers.append("")
-        if element == "item" || element == "entry" {
+        if !insideItem, element == "item" || element == "entry" {
             insideItem = true
+            itemDepth = buffers.count
             item = [:]; categories = []; atomLink = nil
         }
-        guard insideItem else { return }
+        guard insideItem, buffers.count == itemDepth + 1 else { return }
         if element == "link", let href = attributeDict["href"],
            attributeDict["rel"] == nil || attributeDict["rel"] == "alternate" {
             atomLink = href
@@ -208,12 +210,16 @@ private final class FeedXMLDelegate: NSObject, XMLParserDelegate {
         if !buffers.isEmpty { buffers[buffers.count - 1] += text + " " }
         guard insideItem else { return }
         let element = elementName.lowercased()
+        if buffers.count == itemDepth - 1, element == "item" || element == "entry" {
+            finishItem(); insideItem = false
+            return
+        }
+        guard buffers.count == itemDepth else { return }
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if element == "category", !value.isEmpty { categories.append(value) }
         if ["title", "description", "summary", "content", "content:encoded", "link", "guid", "id", "pubdate", "published", "updated", "dc:date"].contains(element), !value.isEmpty {
             item[element] = value
         }
-        if element == "item" || element == "entry" { finishItem(); insideItem = false }
     }
 
     private func finishItem() {

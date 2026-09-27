@@ -19,6 +19,10 @@ final class EntitlementPolicyTests: XCTestCase {
         XCTAssertTrue(EntitlementPolicy.grantsPro(productID: SubscriptionProductID.monthly, expirationDate: Date(timeIntervalSince1970: 2_000), revocationDate: nil, now: now))
     }
 
+    func testSubscriptionWithoutExpirationDoesNotGrantLifetimeAccess() {
+        XCTAssertFalse(EntitlementPolicy.grantsPro(productID: SubscriptionProductID.monthly, expirationDate: nil, revocationDate: nil, now: now))
+    }
+
     func testExpiredRevokedAndUnknownDoNotGrantPro() {
         XCTAssertFalse(EntitlementPolicy.grantsPro(productID: SubscriptionProductID.monthly, expirationDate: Date(timeIntervalSince1970: 999), revocationDate: nil, now: now))
         XCTAssertFalse(EntitlementPolicy.grantsPro(productID: SubscriptionProductID.annual, expirationDate: Date(timeIntervalSince1970: 2_000), revocationDate: now, now: now))

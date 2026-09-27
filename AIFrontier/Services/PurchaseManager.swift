@@ -24,7 +24,7 @@ enum EntitlementPolicy {
     }
     static func grantsPro(productID: String, expirationDate: Date?, revocationDate: Date?, now: Date = .now) -> Bool {
         guard SubscriptionProductID.all.contains(productID), revocationDate == nil else { return false }
-        guard let expirationDate else { return true }
+        guard let expirationDate else { return false }
         return expirationDate > now
     }
 }
@@ -37,6 +37,7 @@ final class PurchaseManager: ObservableObject {
     @Published var errorMessage: String?
 
     private var updatesTask: Task<Void, Never>?
+    private var expirationTask: Task<Void, Never>?
     private var isLoadingProducts = false
 
     init(startAutomatically: Bool = true) {
@@ -49,11 +50,11 @@ final class PurchaseManager: ObservableObject {
         Task { await load() }
     }
 
-    deinit { updatesTask?.cancel() }
+    deinit { updatesTask?.cancel(); expirationTask?.cancel() }
 
     var hasPro: Bool {
         if EntitlementPolicy.developerAccess { return true }
-        if case .pro = state { return true }
+        if case .pro(let expiration) = state { return expiration.map { $0 > .now } ?? false }
         return false
     }
 
@@ -64,6 +65,7 @@ final class PurchaseManager: ObservableObject {
         errorMessage = nil
         isEligibleForTrial = false
         if !hasPro { state = .loading }
+        await refreshEntitlements()
         do {
             products = try await Product.products(for: SubscriptionProductID.all).sorted { lhs, rhs in
                 lhs.id == SubscriptionProductID.monthly && rhs.id == SubscriptionProductID.annual
@@ -77,7 +79,8 @@ final class PurchaseManager: ObservableObject {
             }
         } catch {
             errorMessage = error.localizedDescription
-            state = .unavailable(error.localizedDescription)
+            await refreshEntitlements()
+            if !hasPro { state = .unavailable(error.localizedDescription) }
         }
     }
 
@@ -125,6 +128,16 @@ final class PurchaseManager: ObservableObject {
             }
         }
         state = entitled ? .pro(expiration: latestExpiration) : .free
+        expirationTask?.cancel()
+        if entitled, let expiration = latestExpiration {
+            // Publish at expiry even if an offline lesson stays on screen without a redraw.
+            let delay = max(0, min(expiration.timeIntervalSinceNow, 86_400))
+            expirationTask = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+                guard !Task.isCancelled else { return }
+                await self?.refreshEntitlements()
+            }
+        }
     }
 
     private func listenForTransactions() -> Task<Void, Never> {

@@ -1,4 +1,5 @@
 """Inspect signed owner/public IPA packages without exposing provisioned device identifiers."""
+import argparse
 import hashlib
 import json
 import plistlib
@@ -16,8 +17,14 @@ build = re.search(r'CURRENT_PROJECT_VERSION: (\d+)', project).group(1)
 verification = root / f'deliverables/verification-{version}'
 verification.mkdir(parents=True, exist_ok=True)
 source = (root / 'AIFrontier/Resources/Curriculum.json').read_bytes()
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--public-only', action='store_true', help='Audit only the public App Store distribution package')
+args = parser.parse_args()
 results = {}
-for name, owner in [(f'AIFrontier-{version}-signed.ipa', False), (f'AIFrontier-{version}-owner-signed.ipa', True)]:
+packages = [(f'AIFrontier-{version}-signed.ipa', False)]
+if not args.public_only:
+    packages.append((f'AIFrontier-{version}-owner-signed.ipa', True))
+for name, owner in packages:
     package = root / 'deliverables' / name
     destination = root / '.build/package-audit' / version / ('owner' if owner else 'public')
     with zipfile.ZipFile(package) as archive:

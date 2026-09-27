@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-project_dir='/Users/geruyang/AIProject/Ai-Teacher'
+project_dir="${0:A:h:h}"
 check_only=false
 [[ "${1:-}" == '--check' ]] && check_only=true
 run_dir="$project_dir/.build/device-install/$(date +%Y%m%d-%H%M%S)-$$"

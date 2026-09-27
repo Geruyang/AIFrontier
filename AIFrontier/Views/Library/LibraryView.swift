@@ -7,7 +7,7 @@ struct LibraryView: View {
     @EnvironmentObject private var translations: NewsTranslationStore
 
     private var completed: [Lesson] { CurriculumCatalog.lessons.filter { store.isCompleted($0.id) } }
-    private var saved: [NewsArticle] { news.articles.filter { store.isBookmarked($0.id) } }
+    private var saved: [NewsArticle] { store.savedArticles }
 
     var body: some View {
         List {
@@ -24,6 +24,22 @@ struct LibraryView: View {
                     ForEach(completed) { lesson in
                         NavigationLink(value: lesson) { Label(lesson.title.value(for: settings.language), systemImage: "checkmark.seal.fill") }
                     }
+                }
+            }
+            Section(settings.text("Needs review", "待复习课程")) {
+                let review = CurriculumCatalog.lessons.filter { store.needsReview($0) }
+                if review.isEmpty {
+                    Text(settings.text("Questions you miss will guide your review here.", "测验中有错题的课程会显示在这里，方便查漏补缺。"))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+                ForEach(review) { lesson in
+                    NavigationLink(value: lesson) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(lesson.title.value(for: settings.language))
+                            Text(settings.text("Latest score: ", "最近得分：") + "\(store.data.latestLessonScores[lesson.id] ?? 0)/\(lesson.questions.count)")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }.accessibilityIdentifier("review.\(lesson.id)")
                 }
             }
             Section(settings.text("Saved articles", "收藏资讯")) {
@@ -43,12 +59,12 @@ struct LibraryView: View {
                     }
                 }
             }
-            Section {
-                NavigationLink { SettingsView() } label: { Label(settings.text("Settings & privacy", "设置与隐私"), systemImage: "gearshape") }
-                    .accessibilityIdentifier("library.settings")
-            }
         }
         .navigationTitle(settings.text("Library", "资料库"))
+        .toolbar {
+            NavigationLink { SettingsView() } label: { Label(settings.text("Settings & privacy", "设置与隐私"), systemImage: "gearshape") }
+                .accessibilityIdentifier("library.settings")
+        }
         .navigationDestination(for: Lesson.self) { LessonDetailView(lesson: $0) }
         .navigationDestination(for: NewsArticle.self) { ArticleDetailView(article: $0) }
     }

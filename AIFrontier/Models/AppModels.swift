@@ -189,4 +189,29 @@ struct AppUserData: Codable, Equatable, Sendable {
     var cachedArticles: [NewsArticle] = []
     var lastNewsRefresh: Date?
     var selectedLevel: AudienceLevel?
+    var savedArticles: [NewsArticle] = []
+    var latestLessonScores: [String: Int] = [:]
+    var lastVisitedLessonID: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case completedLessonIDs, lessonScores, bookmarkedArticleIDs, cachedArticles, lastNewsRefresh, selectedLevel
+        case savedArticles, latestLessonScores, lastVisitedLessonID
+    }
+
+}
+
+extension AppUserData {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        completedLessonIDs = try values.decodeIfPresent(Set<String>.self, forKey: .completedLessonIDs) ?? []
+        lessonScores = try values.decodeIfPresent([String: Int].self, forKey: .lessonScores) ?? [:]
+        bookmarkedArticleIDs = try values.decodeIfPresent(Set<String>.self, forKey: .bookmarkedArticleIDs) ?? []
+        cachedArticles = try values.decodeIfPresent([NewsArticle].self, forKey: .cachedArticles) ?? []
+        lastNewsRefresh = try values.decodeIfPresent(Date.self, forKey: .lastNewsRefresh)
+        selectedLevel = try values.decodeIfPresent(AudienceLevel.self, forKey: .selectedLevel)
+        savedArticles = try values.decodeIfPresent([NewsArticle].self, forKey: .savedArticles)
+            ?? cachedArticles.filter { bookmarkedArticleIDs.contains($0.id) }
+        latestLessonScores = try values.decodeIfPresent([String: Int].self, forKey: .latestLessonScores) ?? lessonScores
+        lastVisitedLessonID = try values.decodeIfPresent(String.self, forKey: .lastVisitedLessonID)
+    }
 }
